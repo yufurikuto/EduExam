@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>問題プール管理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; }</style>
+</head>
+<body class="bg-gray-100 p-8">
+
+<div class="max-w-7xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+    <h1 class="text-3xl font-bold mb-6 text-gray-800">📚 問題プール管理</h1>
+    <p class="mb-6 text-gray-600">登録されている全ての問題を管理します。ここで編集した内容は、全ての試験に反映されます。</p>
+
+    <div th:if="${message}" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
+        <p th:text="${message}"></p>
+    </div>
+    <div th:if="${error}" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+        <p th:text="${error}"></p>
+    </div>
+    
+    <form th:action="@{/exam/create/question/manage}" method="get" class="flex space-x-4 mb-6 items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <label for="filterQuestionType" class="text-sm font-medium text-gray-700">形式で絞り込む:</label>
+        <select name="filterQuestionType" id="filterQuestionType" class="border border-gray-300 rounded-md shadow-sm p-2 text-sm" onchange="this.form.submit()">
+            <option value="ALL" th:selected="${currentFilterType == null or currentFilterType == 'ALL'}">全て表示</option>
+            <option th:each="type : ${questionTypes}" 
+                    th:value="${type}" 
+                    th:text="${type}" 
+                    th:selected="${currentFilterType != null and currentFilterType.equals(type)}">
+                問題形式
+            </option>
+        </select>
+        
+        <input type="hidden" name="sortBy" th:value="${currentSortBy}">
+        <input type="hidden" name="sortDir" th:value="${currentSortDir}">
+    </form>
+    
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-indigo-50">
+                <tr>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <a th:href="@{/exam/create/question/manage(sortBy='id', sortDir=${currentSortBy == 'id' and currentSortDir == 'desc' ? 'asc' : 'desc'}, filterQuestionType=${currentFilterType})}" 
+                           class="hover:text-indigo-600 flex items-center">
+                           ID
+                           <span th:if="${currentSortBy == 'id' or currentSortBy == null}" th:text="${currentSortDir == 'desc' ? '▼' : '▲'}" class="ml-1"></span>
+                        </a>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1/2">
+                        <a th:href="@{/exam/create/question/manage(sortBy='questionText', sortDir=${currentSortBy == 'questionText' and currentSortDir == 'desc' ? 'asc' : 'desc'}, filterQuestionType=${currentFilterType})}" 
+                           class="hover:text-indigo-600 flex items-center">
+                           問題文
+                           <span th:if="${currentSortBy == 'questionText'}" th:text="${currentSortDir == 'asc' ? '▲' : '▼'}" class="ml-1"></span>
+                        </a>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <a th:href="@{/exam/create/question/manage(sortBy='questionType', sortDir=${currentSortBy == 'questionType' and currentSortDir == 'desc' ? 'asc' : 'desc'}, filterQuestionType=${currentFilterType})}" 
+                           class="hover:text-indigo-600 flex items-center">
+                           形式
+                           <span th:if="${currentSortBy == 'questionType'}" th:text="${currentSortDir == 'asc' ? '▲' : '▼'}" class="ml-1"></span>
+                        </a>
+                    </th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        <a th:href="@{/exam/create/question/manage(sortBy='score', sortDir=${currentSortBy == 'score' and currentSortDir == 'desc' ? 'asc' : 'desc'}, filterQuestionType=${currentFilterType})}" 
+                           class="hover:text-indigo-600 flex items-center">
+                           配点
+                           <span th:if="${currentSortBy == 'score'}" th:text="${currentSortDir == 'asc' ? '▲' : '▼'}" class="ml-1"></span>
+                        </a>
+                    </th>
+                    <th scope="col" class="px-6 py-3"></th>
+                </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                <tr th:if="${questions == null or questions.isEmpty()}">
+                    <td colspan="5" class="px-6 py-4 text-center text-gray-500">該当する問題が見つかりません。</td>
+                </tr>
+                <tr th:each="q : ${questions}">
+                    <td th:text="${q.id}" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">1</td>
+                    <td class="px-6 py-4 text-sm text-gray-700 max-w-lg truncate" th:text="${q.questionText}">問題文のテキスト</td>
+                    <td th:text="${q.questionType}" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">MULTIPLE_CHOICE</td>
+                    <td th:text="${q.score} + '点'" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">10点</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <a th:href="@{/exam/create/editQuestion/{id}(id=${q.id})}" class="text-indigo-600 hover:text-indigo-900 mr-4">編集</a>
+                        <button type="button" 
+                                th:attr="data-question-id=${q.id}, data-question-text=${q.questionText}" 
+                                onclick="confirmDelete(this.getAttribute('data-question-id'), this.getAttribute('data-question-text'))"
+                                class="text-red-600 hover:text-red-900">削除</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-8 pt-4 border-t flex justify-between">
+        <a th:href="@{/teacher_home}" class="text-gray-600 hover:text-gray-800 text-sm underline">
+            &lt; ダッシュボードに戻る
+        </a>
+        <p th:if="${questions != null}" class="text-sm text-gray-500" th:text="'合計: ' + ${questions.size()} + '問'"></p>
+        <p th:unless="${questions != null}" class="text-sm text-gray-500">合計: 0問</p>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    /**
+     * 問題削除の確認ダイアログとPOST処理
+     */
+    function confirmDelete(questionId, questionText) {
+        if (confirm(`問題 ID:${questionId} 「${questionText.substring(0, 30)}...」 を本当に問題プールから削除しますか？\n（関連する全ての試験からも削除されます）`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            // 削除エンドポイント
+            form.action = `/exam/create/deleteQuestion/${questionId}`;
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+</script>
+</body>
+</html>

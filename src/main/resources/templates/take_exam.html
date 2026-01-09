@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${exam.title} + ' - 受験中'">受験画面</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; }
+        .question-card { transition: all 0.2s; }
+        .question-card:hover { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen pb-20">
+
+    <header class="bg-indigo-600 text-white p-4 shadow-md sticky top-0 z-10">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold" th:text="${exam.title}">試験タイトル</h1>
+            <div class="text-sm font-mono bg-indigo-700 px-3 py-1 rounded">
+                残り時間: <span id="timer">--:--</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-3xl mx-auto mt-8 px-4">
+        
+        <div class="bg-white p-6 rounded-lg shadow-sm mb-6 border-t-4 border-indigo-500">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2" th:text="${exam.title}"></h2>
+            <p class="text-gray-600" th:text="${exam.description}">試験の説明文がここに入ります。</p>
+        </div>
+
+        <form th:action="@{/student/exam/submit}" method="post">
+            <input type="hidden" name="examId" th:value="${exam.id}" />
+
+            <div th:each="q, stat : ${questions}" class="question-card bg-white p-6 rounded-lg shadow-sm mb-6 border border-gray-200">
+                
+                <div class="flex items-start mb-4">
+                    <span class="bg-gray-100 text-gray-600 font-bold py-1 px-3 rounded mr-3" th:text="'Q' + ${stat.index + 1}">Q1</span>
+                    <div class="flex-grow">
+                        <p class="text-lg text-gray-800 font-medium whitespace-pre-wrap" th:text="${q.questionText}">問題文</p>
+                        <p class="text-xs text-gray-400 mt-1 text-right">配点: <span th:text="${q.score}"></span>点</p>
+                    </div>
+                </div>
+
+                <div th:switch="${q.questionType}" class="ml-2 mt-2">
+
+                    <div th:case="'MULTIPLE_CHOICE'" class="space-y-3">
+                        <div th:each="opt : ${optionsMap.get(q.id)}" class="flex items-center p-2 rounded hover:bg-gray-50 cursor-pointer">
+                            <label class="flex items-center cursor-pointer w-full">
+                                <input type="checkbox" 
+                                       th:name="|answers[${q.id}]|" 
+                                       th:value="${opt.id}"
+                                       class="form-checkbox h-5 w-5 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500">
+                                <span class="ml-3 text-gray-700" th:text="${opt.optionText}">選択肢</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div th:case="'TRUE_FALSE'" class="flex space-x-6 mt-2">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 flex-1 justify-center">
+                            <input type="radio" th:name="|answers[${q.id}]|" value="TRUE" class="form-radio h-5 w-5 text-indigo-600">
+                            <span class="ml-2 font-bold text-gray-700">○ True</span>
+                        </label>
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 flex-1 justify-center">
+                            <input type="radio" th:name="|answers[${q.id}]|" value="FALSE" class="form-radio h-5 w-5 text-indigo-600">
+                            <span class="ml-2 font-bold text-gray-700">× False</span>
+                        </label>
+                    </div>
+
+                    <div th:case="'TEXT'">
+                        <textarea th:name="|answers[${q.id}]|" 
+                                  rows="4" 
+                                  class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                  placeholder="回答を入力してください..."></textarea>
+                    </div>
+
+                    <div th:case="'MATCHING'">
+                        <p class="text-sm text-gray-500 mb-2">左の項目に対応するものを選択してください。</p>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="border p-2 rounded bg-gray-50">
+                                <p class="font-bold text-xs text-gray-400 mb-1">問題要素 (Left)</p>
+                                <ul class="list-disc list-inside text-sm">
+                                    <li th:each="opt : ${optionsMap.get(q.id)}" th:if="${#strings.startsWith(opt.optionText, 'L')}" th:text="${#strings.substringAfter(opt.optionText, ':')}"></li>
+                                </ul>
+                            </div>
+                            <div class="border p-2 rounded bg-gray-50">
+                                <p class="font-bold text-xs text-gray-400 mb-1">選択要素 (Right)</p>
+                                <ul class="list-disc list-inside text-sm">
+                                    <li th:each="opt : ${optionsMap.get(q.id)}" th:if="${#strings.startsWith(opt.optionText, 'R')}" th:text="${#strings.substringAfter(opt.optionText, ':')}"></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <input type="text" th:name="|answers[${q.id}]|" placeholder="回答例: 1-A, 2-B" class="mt-2 w-full p-2 border rounded">
+                    </div>
+
+                    <div th:case="*">
+                        <p class="text-red-500">未対応の問題形式です。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center">
+                <button type="submit" class="bg-indigo-600 text-white text-lg font-bold py-3 px-10 rounded-full shadow-lg hover:bg-indigo-700 transform hover:scale-105 transition duration-200">
+                    回答を送信する
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // ダミーのタイマー処理（60分）
+        let timeLeft = 60 * 60; 
+        const timerEl = document.getElementById('timer');
+
+        setInterval(() => {
+            if (timeLeft <= 0) return;
+            timeLeft--;
+            const m = Math.floor(timeLeft / 60);
+            const s = timeLeft % 60;
+            timerEl.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }, 1000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>試験作成 - ステップ1: 基本設定</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; }</style>
+</head>
+<body class="bg-gray-100 p-8">
+
+<div class="max-w-3xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+    <h1 class="text-3xl font-bold mb-6 text-gray-800">試験作成 - ステップ 1/2</h1>
+    <p class="text-xl mb-8 border-b pb-3">基本設定（科目・時間・合格点）</p>
+
+    <form th:action="@{/exam/create/saveSettings}" th:object="${exam}" method="post" class="space-y-6">
+        
+        <div>
+            <label for="title" class="block text-sm font-medium text-gray-700">試験タイトル</label>
+            <input type="text" th:field="*{title}" id="title" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+        </div>
+
+        <div class="grid grid-cols-3 gap-6">
+            <div>
+                <label for="subjectId" class="block text-sm font-medium text-gray-700">科目</label>
+                <select th:field="*{subjectId}" id="subjectId" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                    <option value="">科目を選択してください</option>
+                    <option th:each="s : ${subjects}" 
+                            th:value="${s.id}" 
+                            th:text="${s.name}">
+                    </option>
+                </select>
+            </div>
+            
+            <div>
+                <label for="unit" class="block text-sm font-medium text-gray-700">単元</label>
+                <input type="text" th:field="*{unit}" id="unit" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="例: 積分、不定詞">
+            </div>
+            <div>
+                <label for="grade" class="block text-sm font-medium text-gray-700">学年</label>
+                <select th:field="*{grade}" id="grade" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                    <option th:each="g : ${grades}" th:value="${g}" th:text="${g}"></option>
+                </select>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6">
+            <div>
+                <label for="timeLimitMinutes" class="block text-sm font-medium text-gray-700">制限時間 (分)</label>
+                <input type="number" th:field="*{timeLimitMinutes}" id="timeLimitMinutes" required min="1" max="180" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+            </div>
+            <div>
+                <label for="passingScore" class="block text-sm font-medium text-gray-700">合格点</label>
+                <input type="number" th:field="*{passingScore}" id="passingScore" required min="0" max="100" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+            </div>
+        </div>
+
+        <div>
+            <label for="targetGroup" class="block text-sm font-medium text-gray-700">対象グループ設定</label>
+            <input type="text" th:field="*{targetGroup}" id="targetGroup" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="例: 全員、3年A組">
+        </div>
+
+        <div class="flex justify-end pt-4">
+            <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                次へ：問題設定へ進む
+            </button>
+        </div>
+
+    </form>
+    
+    <div class="mt-8 pt-4 border-t border-gray-200">
+        <h3 class="text-xl font-semibold mb-3">科目管理（テスト用）</h3>
+        <p class="text-sm text-gray-600 mb-4">新しい科目をデータベースに追加・削除できます。</p>
+
+        <div class="flex space-x-3 mb-6">
+            <input type="text" id="newSubjectName" placeholder="新しい科目名を入力" class="flex-grow border border-gray-300 rounded-md shadow-sm p-2 text-sm">
+            <button id="btnAddSubject" class="bg-green-500 hover:bg-green-600 text-white text-sm font-medium py-2 px-3 rounded-md">科目追加</button>
+        </div>
+
+        <div class="p-4 border border-gray-200 rounded-md bg-white">
+            <h4 class="text-base font-medium mb-2">既存の科目を削除</h4>
+            <div th:if="${subjects.isEmpty()}" class="text-gray-500 text-sm">現在登録されている科目はありません。</div>
+            <ul class="space-y-2" id="currentSubjectList">
+                <li th:each="s : ${subjects}" th:id="'subject-' + ${s.id}" class="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
+                    <span th:text="${s.name}" class="subject-name"></span>
+                    <button type="button" 
+                            th:attr="data-subject-id=${s.id}, data-subject-name=${s.name}" 
+                            onclick="handleDeleteClick(this)"
+                            class="text-red-500 hover:text-red-700 text-xs font-bold py-1 px-2 rounded hover:bg-red-100">
+                        削除
+                    </button>
+                </li>
+            </ul>
+        </div>
+        
+        <div id="subjectResult" class="mt-3 text-sm p-2 bg-yellow-100 rounded hidden"></div>
+    </div>
+</div>
+
+<script>
+    const subjectIdEl = document.getElementById('subjectId');
+    const newSubjectNameEl = document.getElementById('newSubjectName');
+    const btnAddSubjectEl = document.getElementById('btnAddSubject');
+    const subjectResultEl = document.getElementById('subjectResult');
+    const currentSubjectListEl = document.getElementById('currentSubjectList');
+
+    async function postJson(path, body) {
+        const res = await fetch(path, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+        const txt = await res.text();
+        try { return { status: res.status, ok: res.ok, body: JSON.parse(txt) }; }
+        catch (e) { return { status: res.status, ok: res.ok, body: txt }; }
+    }
+    
+    // 科目ドロップダウンをリロードする（追加時）
+    function addSubjectToDropdown(newSubject) {
+        const newOption = document.createElement('option');
+        newOption.value = newSubject.id;
+        newOption.textContent = newSubject.name;
+        subjectIdEl.appendChild(newOption);
+        subjectIdEl.value = newSubject.id;
+    }
+    
+    // 科目リストをリロードする（削除時）
+    function removeSubjectFromDropdown(subjectId) {
+        const optionToRemove = subjectIdEl.querySelector(`option[value="${subjectId}"]`);
+        if (optionToRemove) {
+            optionToRemove.remove();
+        }
+        if (subjectIdEl.value === String(subjectId)) {
+            subjectIdEl.value = ""; 
+        }
+    }
+
+    // 科目追加ボタンの処理
+    btnAddSubjectEl.addEventListener('click', async () => {
+        const name = newSubjectNameEl.value.trim();
+        if (!name) {
+            alert('科目名を入力してください。');
+            return;
+        }
+
+        subjectResultEl.textContent = "追加送信中...";
+        subjectResultEl.classList.remove('hidden');
+
+        const r = await postJson('/api/subjects/add', { name: name, description: name + "に関する試験科目" }); 
+        
+        if (r.ok) {
+            subjectResultEl.textContent = `科目「${name}」を登録成功しました。`;
+            newSubjectNameEl.value = '';
+            
+            // ドロップダウンを更新
+            addSubjectToDropdown(r.body.subject); 
+            
+            // 削除リストを更新
+            const newSubject = r.body.subject;
+            const newLi = document.createElement('li');
+            newLi.id = 'subject-' + newSubject.id;
+            newLi.className = 'flex justify-between items-center p-2 bg-gray-50 rounded text-sm';
+            // ここでinnerHTMLを使用する際、onclickイベントは文字列結合で生成するため、安全です。
+            newLi.innerHTML = `
+                <span class="subject-name">${newSubject.name}</span>
+                <button type="button" 
+                        data-subject-id="${newSubject.id}" 
+                        data-subject-name="${newSubject.name}" 
+                        onclick="handleDeleteClick(this)"
+                        class="text-red-500 hover:text-red-700 text-xs font-bold py-1 px-2 rounded hover:bg-red-100">
+                    削除
+                </button>
+            `;
+            currentSubjectListEl.appendChild(newLi);
+
+        } else {
+            subjectResultEl.textContent = `科目登録失敗 (HTTP ${r.status}): ${r.body.error || '不明なエラー'}`;
+        }
+    });
+    
+    // ★追加: ボタン要素からデータを読み取り、deleteSubjectを呼び出す
+    function handleDeleteClick(buttonEl) {
+        const id = buttonEl.getAttribute('data-subject-id');
+        const name = buttonEl.getAttribute('data-subject-name');
+        
+        deleteSubject(id, name);
+    }
+
+    // 科目削除関数 (ポップアップ確認あり)
+    async function deleteSubject(id, name) {
+        // 確認ポップアップ
+        const isConfirmed = confirm(`本当に科目「${name}」を削除しますか？\n（この科目に紐づく試験や問題がないことを確認してください）`);
+        
+        if (!isConfirmed) {
+            return;
+        }
+
+        subjectResultEl.textContent = `科目「${name}」の削除送信中...`;
+        subjectResultEl.classList.remove('hidden');
+
+        const r = await postJson('/api/subjects/delete', { id: Number(id) }); 
+        
+        if (r.ok) {
+            subjectResultEl.textContent = `科目「${name}」を削除成功しました。`;
+            
+            // ドロップダウンから削除
+            removeSubjectFromDropdown(id); 
+            
+            // 削除リストから削除
+            const liToRemove = document.getElementById('subject-' + id);
+            if (liToRemove) {
+                liToRemove.remove();
+            }
+        } else {
+            subjectResultEl.textContent = `科目削除失敗 (HTTP ${r.status}): ${r.body.error || '不明なエラー'}`;
+        }
+    }
+</script>
+</body>
+</html>

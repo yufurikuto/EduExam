@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${isEditMode} ? '問題編集' : '問題の追加・編集'"></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script> 
+    <style>
+        body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; }
+        .problem-item:hover .header-area { background-color: #f3f4f6; } /* Tailwind: hover:bg-gray-100 */
+        .cursor-grab { cursor: grab; } /* ドラッグカーソル */
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+
+<script th:inline="javascript">
+    /*[# th:if="${isEditMode != null}"]*/
+    var globalIsEditMode = /*[[${isEditMode}]]*/ false;
+    /*[/]*/
+    /*[# th:if="${options != null}"]*/
+    var globalExistingOptions = /*[[${options}]]*/ [];
+    /*[/]*/
+    /*[# th:if="${newQuestion != null and newQuestion.questionType != null}"]*/
+    var globalQuestionType = /*[[${newQuestion.questionType}]]*/ 'MULTIPLE_CHOICE';
+    /*[/]*/
+    
+    // 変数が定義されなかった場合のフォールバックを確保
+    if (typeof globalIsEditMode === 'undefined') { var globalIsEditMode = false; }
+    if (typeof globalExistingOptions === 'undefined') { var globalExistingOptions = []; }
+    if (typeof globalQuestionType === 'undefined') { var globalQuestionType = 'MULTIPLE_CHOICE'; }
+</script>
+
+<div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+
+    <input type="hidden" name="examId" th:value="${exam != null ? exam.id : ''}" />
+
+    <h1 class="text-3xl font-bold mb-2 text-gray-800">問題の追加・編集</h1>
+    <p th:if="${exam != null}" class="text-xl text-indigo-600 mb-6">
+        試験: <span th:text="${exam.title}"></span>
+    </p>
+    <p th:if="${exam == null}" class="text-xl text-gray-500 mb-6">
+        問題プールからの編集
+    </p>
+
+    <div th:if="${message}" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4">
+        <p th:text="${message}"></p>
+    </div>
+    <div th:if="${error}" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+        <p th:text="${error}"></p>
+    </div>
+
+    <div class="mb-10">
+        <h2 class="text-2xl font-semibold mb-4 border-b pb-2">現在の問題リスト</h2>
+        
+        <div th:if="${questions.isEmpty()}" class="p-4 bg-yellow-50 text-yellow-800 rounded-md">
+            この試験にはまだ問題がありません。下のボタンから問題を追加してください。
+        </div>
+
+        <ul class="space-y-4" id="questionListContainer" th:unless="${questions.isEmpty()}">
+            <li th:each="q, stat : ${questions}" 
+                th:id="'question-' + ${q.id}"
+                th:data-question-type="${q.questionType}"
+                class="p-0 border border-gray-300 rounded-lg bg-white shadow-sm problem-item transition-all duration-300">
+                
+                <div class="header-area flex justify-between items-start p-4 cursor-grab transition-colors duration-200"
+                     th:onclick="|toggleInlineEditor('${q.id}', '${exam != null ? exam.id : null}')|"
+                     role="button"
+                     tabindex="0">
+                    <div class="flex-grow">
+                        <span class="font-bold text-lg problem-number" th:text="|${stat.index + 1}. |">1.</span>
+                        <span th:text="${q.questionText}" class="text-gray-800 text-lg font-medium question-text-display">問題文</span>
+                        <div class="text-sm text-gray-500 mt-1">
+                            <span th:text="${q.questionType}" class="mr-3 question-type-display"></span>
+                            <span th:text="${q.score} + '点'" class="question-score-display"></span>
+                        </div>
+                    </div>
+                    <div class="flex space-x-2 shrink-0">
+                        <button type="button" 
+                                th:onclick="|event.stopPropagation(); duplicateQuestion('${q.id}', '${exam != null ? exam.id : null}')|"
+                                class="text-gray-500 hover:text-gray-800 font-medium text-sm">
+                            複製
+                        </button>
+                        
+                        <button type="button" 
+                                th:onclick="|event.stopPropagation(); toggleInlineEditor('${q.id}', '${exam != null ? exam.id : null}')|"
+                                class="edit-toggle-button text-indigo-600 hover:text-indigo-900 font-medium">
+                            編集
+                        </button>
+                        <button type="button" 
+                                th:onclick="|event.stopPropagation(); confirmDelete('${q.id}', '${exam != null ? exam.id : null}')|" 
+                                class="text-red-600 hover:text-red-900">
+                            削除
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="editor-area p-4 pt-0 border-t border-gray-200 bg-white" style="display: none;" th:id="|editor-${q.id}|">
+                    <p class="text-gray-500">
+                        ... 編集フォームがここにロードされます ...
+                    </p>
+                </div>
+            </li>
+        </ul>
+    </div>
+    
+    <h2 class="text-2xl font-semibold mb-4 border-b pb-2 mt-10">問題の追加</h2>
+
+    <div class="flex justify-center space-x-4">
+        <button type="button" id="addNewQuestionButton" class="bg-indigo-600 text-white px-6 py-3 rounded-full shadow-lg hover:bg-indigo-700 transition font-bold flex items-center">
+            <span class="text-xl mr-2">＋</span> 新しい問題を追加
+        </button>
+        
+        <button type="button" onclick="openImportModal()" class="bg-white text-gray-700 border border-gray-300 px-6 py-3 rounded-full shadow-lg hover:bg-gray-50 transition font-bold flex items-center">
+            <span class="text-xl mr-2">📥</span> 問題をインポート
+        </button>
+    </div>
+
+    <div class="mt-8 pt-4 border-t flex justify-between">
+        <a th:if="${exam != null}" th:href="@{/teacher_home}" class="text-gray-600 hover:text-gray-800 text-sm underline">
+            &lt; ダッシュボードに戻る
+        </a>
+    </div>
+</div>
+
+<div id="importModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden" style="z-index: 50;">
+    <div class="relative top-20 mx-auto p-5 border w-3/4 max-w-4xl shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center mb-4 border-b pb-2">
+            <h3 class="text-xl font-bold text-gray-900">問題プールからインポート</h3>
+            <button onclick="closeImportModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="text-2xl">&times;</span>
+            </button>
+        </div>
+
+        <form th:action="@{/exam/create/importQuestions}" method="post" id="importForm">
+            <input type="hidden" name="targetExamId" th:value="${exam != null ? exam.id : ''}" />
+            
+            <div class="mb-4 flex space-x-2">
+                <input type="text" id="importSearch" placeholder="問題文を検索..." class="border p-2 rounded w-full" onkeyup="filterImportQuestions()">
+                <select id="importTypeFilter" class="border p-2 rounded" onchange="filterImportQuestions()">
+                    <option value="">全形式</option>
+                    <option th:each="type : ${questionTypes}" th:value="${type}" th:text="${type}"></option>
+                </select>
+            </div>
+
+            <div class="overflow-y-auto max-h-96 border rounded">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-10">
+                                <input type="checkbox" onclick="toggleAllImport(this)">
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">問題文</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">形式</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="importTableBody">
+                        <tr th:each="q : ${allQuestions}" class="import-row">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <input type="checkbox" name="questionIdsToImport" th:value="${q.id}">
+                            </td>
+                            <td class="px-6 py-4">
+                                <div class="text-sm text-gray-900 font-medium" th:text="${q.questionText}"></div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800" 
+                                      th:text="${q.questionType}"
+                                      th:data-type="${q.questionType}">
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-4 flex justify-end space-x-3">
+                <button type="button" onclick="closeImportModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">キャンセル</button>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">選択した問題をインポート</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script th:src="@{/js/form_handler.js}"></script>
+<script th:src="@{/js/exam_manager.js}"></script>
+</body>
+</html>

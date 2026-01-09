@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>新規試験作成</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <h1 class="text-2xl font-bold mb-6 text-gray-800 text-center">新規試験の作成</h1>
+
+        <form th:action="@{/exam/create/save}" th:object="${exam}" method="post" class="space-y-6">
+            
+            <div>
+                <label for="title" class="block text-sm font-medium text-gray-700">試験タイトル</label>
+                <input type="text" id="title" th:field="*{title}" required
+                       class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="例: 2025年度前期 中間試験">
+            </div>
+
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700">説明文</label>
+                <textarea id="description" th:field="*{description}" rows="3"
+                          class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                          placeholder="試験に関する説明を入力してください"></textarea>
+            </div>
+
+            <div>
+                <label for="subjectId" class="block text-sm font-medium text-gray-700">科目</label>
+                <select id="subjectId" th:field="*{subjectId}" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                    <option value="">科目を選択してください</option>
+                    <option th:each="subject : ${subjects}" 
+                            th:value="${subject.id}" 
+                            th:text="${subject.name}">
+                    </option>
+                </select>
+                <p class="text-xs text-gray-500 mt-1">※科目が一覧にない場合は管理者に連絡してください。</p>
+            </div>
+
+            <div class="flex justify-between items-center pt-4">
+                <a href="/teacher_home" class="text-sm text-gray-600 hover:text-gray-900">キャンセル</a>
+                <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 transition font-bold shadow-md">
+                    次へ（問題作成）
+                </button>
+            </div>
+        </form>
+    </div>
+
+</body>
+</html>
