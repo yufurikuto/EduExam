@@ -5,7 +5,7 @@ COPY . .
 RUN mvn clean package -DskipTests
 
 # 2. 実行環境（Javaだけが入った軽い環境）
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jdk-jammy
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]
