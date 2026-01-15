@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Subject {
+  id        String @id @default(uuid())
+  name      String
+  color     String?
+  teacherId String // For user isolation
+  exams     Exam[]
+
+  @@unique([name, teacherId]) // Avoid duplicate names for same teacher
+}
+
+model Exam {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id])
+  
+  questions   Question[]
+
+  // Enhanced Settings
+  timeLimit   Int?      // in minutes
+  passingScore Int?
+  isShuffle   Boolean   @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  teacherId   String   // For user isolation
+}
+
+model Question {
+  id            String @id @default(uuid())
+  
+  examId        String
+  exam          Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  text          String
+  type          String // "MULTIPLE_CHOICE", "TEXT", etc.
+  options       Json?  // Array of strings or objects
+  correctAnswer String?
+  imageUrl      String?
+  score         Int    @default(10)
+}

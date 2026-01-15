@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Edit2, Archive, Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, Edit2, Archive, Trash2, Save, Upload, ArrowLeft } from "lucide-react";
 import QuestionForm from "@/components/QuestionForm";
+import { getExam, saveExamQuestions, type Question as DBQuestion } from "@/app/actions/exam";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
-// 型定義
+// 型定義 (DBQuestionと合わせる)
 type Question = {
     id: string;
     text: string;
-    type: "MULTIPLE_CHOICE" | "TEXT" | "TRUE_FALSE" | "MATCHING" | "ORDERING" | "FILL_IN_THE_BLANK";
+    type: string; // "MULTIPLE_CHOICE" | "TEXT" | ...
     score: number;
-    options?: string[];
+    options?: string[]; // DBはJsonだがここでは配列として扱う
     correctAnswer?: string;
     imageUrl?: string;
 };
@@ -20,18 +23,68 @@ export default function ExamEditorPage({
 }: {
     params: { id: string };
 }) {
-    const [exam, setExam] = useState({
-        id: params.id,
-        title: "2024年度 前期中間試験 数学I",
-        description: "モックデータ: 二次関数",
-    });
+    const router = useRouter();
+    const [exam, setExam] = useState<any>(null); // DB型に合わせるべきだが一旦any
     const [questions, setQuestions] = useState<Question[]>([]);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        loadExam();
+    }, [params.id]);
+
+    const loadExam = async () => {
+        const data = await getExam(params.id);
+        if (data) {
+            setExam(data);
+            if (data.questions) {
+                // DBの型をUIの型に変換 (optionsがJsonなのでキャスト)
+                const mappedQuestions = data.questions.map((q: any) => ({
+                    id: q.id,
+                    text: q.text,
+                    type: q.type,
+                    score: q.score,
+                    options: q.options as string[],
+                    correctAnswer: q.correctAnswer || undefined,
+                    imageUrl: q.imageUrl || undefined,
+                }));
+                setQuestions(mappedQuestions);
+            }
+        } else {
+            // 権限がない、または存在しない
+            alert("試験が見つかりません。");
+            router.push("/teacher/dashboard");
+        }
+        setLoading(false);
+    };
+
+    const handleSaveDatabase = async () => {
+        setSaving(true);
+        // idはDBで再生成される可能性があるが、saveExamQuestionsはdelete-insert方式なので
+        // クライアント側のIDは無視して内容だけ送る
+        const questionsToSave = questions.map(q => ({
+            text: q.text,
+            type: q.type,
+            score: q.score,
+            options: q.options || [],
+            correctAnswer: q.correctAnswer || null,
+            imageUrl: q.imageUrl || null
+        }));
+
+        const result = await saveExamQuestions(params.id, questionsToSave);
+        if (result.success) {
+            await loadExam(); // 再読み込みしてID同期
+            alert("保存しました！");
+        } else {
+            alert(result.error || "保存に失敗しました");
+        }
+        setSaving(false);
+    };
 
     // 新規追加
     const handleAddQuestion = () => {
-        // 一時的にIDを作成してリストに追加し、編集モードにする
-        const newId = "q-" + Date.now();
+        const newId = "new-" + Date.now();
         const newQ: Question = {
             id: newId,
             text: "",
@@ -43,7 +96,7 @@ export default function ExamEditorPage({
         setEditingId(newId);
     };
 
-    const handleSave = (updatedQ: Question) => {
+    const handleSaveLocal = (updatedQ: Question) => {
         setQuestions(questions.map((q) => (q.id === updatedQ.id ? updatedQ : q)));
         setEditingId(null);
     };
@@ -54,11 +107,47 @@ export default function ExamEditorPage({
         }
     };
 
+    const handleImport = () => {
+        const text = prompt("CSV形式またはテキストで問題を貼り付けてください (実装予定)");
+        if (text) {
+            alert("インポート機能は現在開発中です。\n" + text.substring(0, 20) + "...");
+        }
+    };
+
+    if (loading) return <div className="p-10 text-center">読み込み中...</div>;
+
     return (
         <div className="max-w-5xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
-            <div className="mb-8 border-b pb-4">
-                <h1 className="text-3xl font-bold text-gray-900">{exam.title}</h1>
-                <p className="text-gray-500 mt-2">{exam.description}</p>
+            <div className="mb-8 flex justify-between items-start border-b pb-4">
+                <div>
+                    <Link href="/teacher/dashboard" className="text-sm text-gray-500 hover:text-gray-700 flex items-center mb-2">
+                        <ArrowLeft className="w-4 h-4 mr-1" /> ダッシュボードに戻る
+                    </Link>
+                    <h1 className="text-3xl font-bold text-gray-900">{exam?.title}</h1>
+                    <p className="text-gray-500 mt-2">{exam?.description}</p>
+                    {exam?.subject && (
+                        <span className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {exam.subject.name}
+                        </span>
+                    )}
+                </div>
+                <div className="flex space-x-2">
+                    <button
+                        onClick={handleImport}
+                        className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                        <Upload className="mr-2 h-4 w-4" />
+                        インポート
+                    </button>
+                    <button
+                        onClick={handleSaveDatabase}
+                        disabled={saving}
+                        className="flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400"
+                    >
+                        <Save className="mr-2 h-4 w-4" />
+                        {saving ? "保存中..." : "保存する"}
+                    </button>
+                </div>
             </div>
 
             <div className="space-y-6">
@@ -75,10 +164,9 @@ export default function ExamEditorPage({
                     <div key={q.id}>
                         {editingId === q.id ? (
                             <QuestionForm
-                                question={q}
-                                onSave={handleSave}
+                                question={q as any} // 型互換のためキャスト
+                                onSave={handleSaveLocal}
                                 onCancel={() => {
-                                    // 新規作成中のキャンセルなら削除、既存なら編集終了
                                     if (q.text === "") {
                                         setQuestions(questions.filter(qi => qi.id !== q.id));
                                     }
@@ -113,6 +201,11 @@ export default function ExamEditorPage({
                                     </div>
                                 </div>
                                 <p className="mt-2 text-gray-800 whitespace-pre-wrap">{q.text}</p>
+                                {q.imageUrl && (
+                                    <div className="mt-2">
+                                        <img src={q.imageUrl} alt="Question Image" className="max-h-48 rounded border border-gray-200" />
+                                    </div>
+                                )}
                                 {q.type === "MULTIPLE_CHOICE" && q.options && (
                                     <div className="mt-3 pl-4 border-l-2 border-gray-100 space-y-1">
                                         {q.options.map((opt, i) => (
@@ -120,6 +213,11 @@ export default function ExamEditorPage({
                                                 {String(i + 1) === q.correctAnswer ? "✓ " : "・ "}{opt}
                                             </div>
                                         ))}
+                                    </div>
+                                )}
+                                {q.type === "MATCHING" && (
+                                    <div className="mt-3 text-sm text-gray-500 italic">
+                                        (マッチング問題の設定済み)
                                     </div>
                                 )}
                             </div>
