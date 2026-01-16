@@ -29,11 +29,16 @@ export type Question = {
 };
 
 // 試験一覧取得
-export async function getExams(): Promise<any[]> {
+export async function getExams(subjectId?: string): Promise<any[]> {
     try {
         const teacherId = await requireAuth();
+        const where: any = { teacherId };
+        if (subjectId && subjectId !== 'all') {
+            where.subjectId = subjectId;
+        }
+
         const exams = await prisma.exam.findMany({
-            where: { teacherId },
+            where,
             include: {
                 subject: true,
                 _count: { select: { questions: true } }
@@ -200,7 +205,11 @@ export async function submitExam(data: {
 }
 
 // 結果一覧取得 (先生用)
-export async function getExamResults(examId: string): Promise<any[]> {
+export async function getExamResults(examId: string, options?: {
+    sortBy?: 'score' | 'submittedAt' | 'studentNumber';
+    sortOrder?: 'asc' | 'desc';
+    query?: string;
+}): Promise<any[]> {
     try {
         const teacherId = await requireAuth();
         const exam = await prisma.exam.findUnique({
@@ -211,9 +220,24 @@ export async function getExamResults(examId: string): Promise<any[]> {
             return [];
         }
 
+        const where: any = { examId };
+        if (options?.query) {
+            where.OR = [
+                { studentName: { contains: options.query } }, // Case insensitive via mode:'insensitive' if postgres specific? Default is case sensitive usually in Prisma unless specified or using localized collation. SQLite/Postgres varies. Let's trust default or add mode later if needed.
+                { studentNumber: { contains: options.query } }
+            ];
+        }
+
+        const orderBy: any = {};
+        if (options?.sortBy) {
+            orderBy[options.sortBy] = options.sortOrder || 'desc';
+        } else {
+            orderBy.submittedAt = 'desc';
+        }
+
         const results = await prisma.examResult.findMany({
-            where: { examId },
-            orderBy: { submittedAt: 'desc' },
+            where,
+            orderBy,
         });
 
         return results;

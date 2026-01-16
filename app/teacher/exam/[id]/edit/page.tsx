@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit2, Archive, Trash2, Save, Upload, ArrowLeft } from "lucide-react";
 import QuestionForm from "@/components/QuestionForm";
-import QuestionImport from "@/components/QuestionImport";
+import QuestionImportFromExam from "@/components/QuestionImportFromExam";
 import { getExam, saveExamQuestions, type Question as DBQuestion } from "@/app/actions/exam";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -152,7 +152,7 @@ export default function ExamEditorPage({
                         className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
                     >
                         <Upload className="mr-2 h-4 w-4" />
-                        インポート
+                        過去問からコピー
                     </button>
                     <button
                         onClick={handleSaveDatabase}
@@ -251,7 +251,7 @@ export default function ExamEditorPage({
                 </button>
             </div>
             {showImport && (
-                <QuestionImport
+                <QuestionImportFromExam
                     onImport={handleImportQuestions}
                     onClose={() => setShowImport(false)}
                 />
