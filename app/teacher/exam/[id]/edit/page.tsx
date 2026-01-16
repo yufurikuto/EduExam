@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit2, Archive, Trash2, Save, Upload, ArrowLeft } from "lucide-react";
 import QuestionForm from "@/components/QuestionForm";
+import QuestionImport from "@/components/QuestionImport";
 import { getExam, saveExamQuestions, type Question as DBQuestion } from "@/app/actions/exam";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -29,6 +30,7 @@ export default function ExamEditorPage({
     const [editingId, setEditingId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [showImport, setShowImport] = useState(false);
 
     useEffect(() => {
         loadExam();
@@ -107,11 +109,24 @@ export default function ExamEditorPage({
         }
     };
 
+    const handleImportQuestions = (newQuestions: any[]) => {
+        // Map imported questions to current format
+        const formatted = newQuestions.map(q => ({
+            id: q.id || "import-" + Math.random(),
+            text: q.text,
+            type: q.type,
+            score: q.score,
+            options: q.options,
+            correctAnswer: q.correctAnswer,
+            imageUrl: q.imageUrl
+        }));
+        setQuestions([...questions, ...formatted]);
+        setShowImport(false);
+        alert(`${formatted.length}件の問題を追加しました。\n保存ボタンを押して確定してください。`);
+    };
+
     const handleImport = () => {
-        const text = prompt("CSV形式またはテキストで問題を貼り付けてください (実装予定)");
-        if (text) {
-            alert("インポート機能は現在開発中です。\n" + text.substring(0, 20) + "...");
-        }
+        setShowImport(true);
     };
 
     if (loading) return <div className="p-10 text-center">読み込み中...</div>;
@@ -235,6 +250,12 @@ export default function ExamEditorPage({
                     新しい問題を追加
                 </button>
             </div>
+            {showImport && (
+                <QuestionImport
+                    onImport={handleImportQuestions}
+                    onClose={() => setShowImport(false)}
+                />
+            )}
         </div>
     );
 }

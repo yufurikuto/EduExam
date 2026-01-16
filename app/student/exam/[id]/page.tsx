@@ -28,6 +28,13 @@ export default function StudentExamPage({
     const [studentNumber, setStudentNumber] = useState("");
     const [isStarted, setIsStarted] = useState(false);
 
+    const [exam, setExam] = useState<any>(null);
+    const [questions, setQuestions] = useState<Question[]>([]);
+    const [answers, setAnswers] = useState<Record<string, string>>({});
+    const [isSubmitted, setIsSubmitted] = useState(false);
+    const [timeLeft, setTimeLeft] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
+
     useEffect(() => {
         const fetchExam = async () => {
             const data = await getStudentExam(params.id);
