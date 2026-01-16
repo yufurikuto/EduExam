@@ -173,3 +173,52 @@ export async function saveExamQuestions(examId: string, questions: Omit<Question
         return { success: false, error: '問題の保存に失敗しました。' };
     }
 }
+
+// 試験結果の提出
+export async function submitExam(data: {
+    examId: string;
+    studentName: string;
+    studentNumber: string;
+    score: number;
+    answers: Record<string, string>;
+}): Promise<{ success: boolean; error?: string }> {
+    try {
+        await prisma.examResult.create({
+            data: {
+                examId: data.examId,
+                studentName: data.studentName,
+                studentNumber: data.studentNumber,
+                score: data.score,
+                answers: data.answers,
+            },
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Failed to submit exam:', error);
+        return { success: false, error: '送信に失敗しました。' };
+    }
+}
+
+// 結果一覧取得 (先生用)
+export async function getExamResults(examId: string): Promise<any[]> {
+    try {
+        const teacherId = await requireAuth();
+        const exam = await prisma.exam.findUnique({
+            where: { id: examId },
+        });
+
+        if (!exam || exam.teacherId !== teacherId) {
+            return [];
+        }
+
+        const results = await prisma.examResult.findMany({
+            where: { examId },
+            orderBy: { submittedAt: 'desc' },
+        });
+
+        return results;
+    } catch (error) {
+        console.error('Failed to get exam results:', error);
+        return [];
+    }
+}

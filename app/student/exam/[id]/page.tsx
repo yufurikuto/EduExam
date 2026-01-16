@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getStudentExam } from "@/app/actions/exam";
+import { getStudentExam, submitExam } from "@/app/actions/exam";
 import OrderingQuestion from "@/components/OrderingQuestion";
 import MatchingQuestion from "@/components/MatchingQuestion";
 import FillInTheBlankQuestion from "@/components/FillInTheBlankQuestion";
@@ -24,12 +24,9 @@ export default function StudentExamPage({
     params: { id: string };
 }) {
     const router = useRouter();
-    const [exam, setExam] = useState<any>(null);
-    const [questions, setQuestions] = useState<Question[]>([]);
-    const [answers, setAnswers] = useState<Record<string, string>>({});
-    const [isSubmitted, setIsSubmitted] = useState(false);
-    const [timeLeft, setTimeLeft] = useState<number | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [studentName, setStudentName] = useState("");
+    const [studentNumber, setStudentNumber] = useState("");
+    const [isStarted, setIsStarted] = useState(false);
 
     useEffect(() => {
         const fetchExam = async () => {
@@ -52,7 +49,7 @@ export default function StudentExamPage({
 
     // Timer logic
     useEffect(() => {
-        if (timeLeft === null || isSubmitted) return;
+        if (!isStarted || timeLeft === null || isSubmitted) return;
 
         if (timeLeft <= 0) {
             alert("制限時間が終了しました！自動的に送信されます。");
@@ -65,7 +62,7 @@ export default function StudentExamPage({
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [timeLeft, isSubmitted]);
+    }, [timeLeft, isSubmitted, isStarted]);
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
@@ -77,7 +74,16 @@ export default function StudentExamPage({
         setAnswers((prev) => ({ ...prev, [qId]: value }));
     };
 
-    const handleSubmit = (e: React.FormEvent | null) => {
+    const handleStart = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!studentName.trim() || !studentNumber.trim()) {
+            alert("出席番号と名前を入力してください。");
+            return;
+        }
+        setIsStarted(true);
+    };
+
+    const handleSubmit = async (e: React.FormEvent | null) => {
         if (e) e.preventDefault();
 
         // Calculate score (Client-side simple grading for now)
@@ -91,20 +97,91 @@ export default function StudentExamPage({
             // Simple string strict check
             if (userAnswer && q.correctAnswer && userAnswer === q.correctAnswer) {
                 earnedScore += q.score;
-            } else if (q.type === "MULTIPLE_CHOICE" && userAnswer && q.correctAnswer && userAnswer == q.correctAnswer) {
-                // Loose check for multiple choice "1" == 1
-                earnedScore += q.score;
+            } else if (q.type === "MULTIPLE_CHOICE" && userAnswer && q.correctAnswer) {
+                // Check if JSON arrays match (sorted)
+                try {
+                    const u = JSON.parse(userAnswer);
+                    const c = JSON.parse(q.correctAnswer);
+                    if (Array.isArray(u) && Array.isArray(c)) {
+                        if (JSON.stringify(u.sort()) === JSON.stringify(c.sort())) {
+                            earnedScore += q.score;
+                        }
+                    } else if (String(userAnswer) === String(q.correctAnswer)) {
+                        earnedScore += q.score;
+                    }
+                } catch {
+                    if (String(userAnswer) === String(q.correctAnswer)) {
+                        earnedScore += q.score;
+                    }
+                }
             }
             // Add more complex grading logic for Matching/Ordering if needed
         });
 
+        // Server save
+        const result = await submitExam({
+            examId: exam.id,
+            studentName,
+            studentNumber,
+            score: earnedScore,
+            answers
+        });
+
+        if (!result.success) {
+            alert(result.error || "送信に失敗しました");
+            return;
+        }
+
         setIsSubmitted(true);
-        // Alert score
-        // setTimeout(() => alert(`送信しました。\nあなたの得点: ${earnedScore} / ${totalScore}`), 500);
     };
 
     if (loading) return <div className="min-h-screen flex items-center justify-center">読み込み中...</div>;
     if (!exam) return <div className="min-h-screen flex items-center justify-center">試験が見つかりません</div>;
+
+    // Student Info Input Screen
+    if (!isStarted) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
+                    <h1 className="text-2xl font-bold mb-6 text-center">{exam.title}</h1>
+                    <p className="mb-6 text-gray-600 text-sm">
+                        試験を開始する前に、出席番号と名前を入力してください。<br />
+                        制限時間: {exam.timeLimit ? `${exam.timeLimit}分` : '無制限'}
+                    </p>
+                    <form onSubmit={handleStart} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">出席番号</label>
+                            <input
+                                type="text"
+                                required
+                                value={studentNumber}
+                                onChange={e => setStudentNumber(e.target.value)}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="例: 101"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">名前</label>
+                            <input
+                                type="text"
+                                required
+                                value={studentName}
+                                onChange={e => setStudentName(e.target.value)}
+                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                placeholder="例: 山田 太郎"
+                            />
+                        </div>
+                        <button
+                            type="submit"
+                            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                            試験を開始する
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
 
     if (isSubmitted) {
         return (
@@ -129,13 +206,15 @@ export default function StudentExamPage({
                 <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
                     <h1 className="font-bold text-gray-800 truncate max-w-xs">{exam.title}</h1>
                     <div className="flex items-center space-x-4">
+                        <div className="text-sm text-gray-500 hidden sm:block">
+                            {studentNumber} {studentName}
+                        </div>
                         {timeLeft !== null && (
                             <div className={`flex items-center font-mono text-xl font-bold ${timeLeft < 60 ? 'text-red-600 animate-pulse' : 'text-indigo-600'}`}>
                                 <Clock className="w-5 h-5 mr-2" />
                                 {formatTime(timeLeft)}
                             </div>
                         )}
-                        {!timeLeft && <div className="text-sm text-gray-500">受験中...</div>}
                     </div>
                 </div>
             </header>
@@ -186,18 +265,53 @@ export default function StudentExamPage({
 
                                     {q.type === "MULTIPLE_CHOICE" && parsedOptions.length > 0 && (
                                         <div className="space-y-3">
-                                            {parsedOptions.map((opt, i) => (
-                                                <label key={i} className="flex items-center p-3 bg-white border border-gray-200 rounded cursor-pointer hover:bg-indigo-50 transition">
-                                                    <input
-                                                        type="radio"
-                                                        name={`q-${q.id}`}
-                                                        value={i + 1}
-                                                        onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                                                        className="w-5 h-5 text-indigo-600 focus:ring-indigo-500"
-                                                    />
-                                                    <span className="ml-3 text-gray-700">{opt}</span>
-                                                </label>
-                                            ))}
+                                            {(() => {
+                                                // Determine if multi-select based on correctAnswer format
+                                                const isMultiple = q.correctAnswer?.startsWith("[") || false;
+                                                // Current answer (string or json string)
+                                                const rawAnswer = answers[q.id] || "";
+                                                let currentSelection: string[] = [];
+                                                if (isMultiple) {
+                                                    try {
+                                                        const p = JSON.parse(rawAnswer);
+                                                        if (Array.isArray(p)) currentSelection = p;
+                                                    } catch { }
+                                                }
+
+                                                return parsedOptions.map((opt, i) => {
+                                                    const valStr = String(i + 1);
+                                                    const isChecked = isMultiple
+                                                        ? currentSelection.includes(valStr)
+                                                        : rawAnswer === valStr;
+
+                                                    return (
+                                                        <label key={i} className="flex items-center p-3 bg-white border border-gray-200 rounded cursor-pointer hover:bg-indigo-50 transition">
+                                                            <input
+                                                                type={isMultiple ? "checkbox" : "radio"}
+                                                                name={`q-${q.id}`}
+                                                                value={valStr}
+                                                                checked={isChecked}
+                                                                onChange={(e) => {
+                                                                    if (isMultiple) {
+                                                                        let newSelection = [...currentSelection];
+                                                                        if (e.target.checked) {
+                                                                            newSelection.push(valStr);
+                                                                        } else {
+                                                                            newSelection = newSelection.filter(v => v !== valStr);
+                                                                        }
+                                                                        // Sort to match correct answer format for easy comparison
+                                                                        handleAnswerChange(q.id, JSON.stringify(newSelection.sort()));
+                                                                    } else {
+                                                                        handleAnswerChange(q.id, valStr);
+                                                                    }
+                                                                }}
+                                                                className={`w-5 h-5 text-indigo-600 focus:ring-indigo-500 ${isMultiple ? "rounded" : ""}`}
+                                                            />
+                                                            <span className="ml-3 text-gray-700">{opt}</span>
+                                                        </label>
+                                                    );
+                                                });
+                                            })()}
                                         </div>
                                     )}
 

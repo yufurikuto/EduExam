@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Plus, Clock, BookOpen, Edit, Play } from "lucide-react";
 import { getExams } from "@/app/actions/exam";
+import ExamCard from "@/components/ExamCard";
 
 export const dynamic = 'force-dynamic';
 
@@ -47,55 +48,7 @@ export default async function TeacherDashboard() {
                 ) : (
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 px-4 sm:px-0">
                         {(exams as any[]).map((exam) => (
-                            <div key={exam.id} className="bg-white overflow-hidden shadow rounded-lg flex flex-col hover:shadow-md transition">
-                                <div className="px-4 py-5 sm:p-6 flex-1">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <span
-                                            className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800"
-                                            style={{ backgroundColor: exam.subject?.color || '#e0f2fe' }}
-                                        >
-                                            {exam.subject?.name || '未分類'}
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                            {new Date(exam.updatedAt).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                    <h3 className="text-lg leading-6 font-medium text-gray-900 mb-2 truncate">
-                                        {exam.title}
-                                    </h3>
-                                    <p className="text-sm text-gray-500 line-clamp-2 mb-4 h-10">
-                                        {exam.description || '説明なし'}
-                                    </p>
-
-                                    <div className="flex items-center text-sm text-gray-500 space-x-4">
-                                        <div className="flex items-center">
-                                            <BookOpen className="mr-1.5 h-4 w-4" />
-                                            {(exam as any)._count?.questions || 0}問
-                                        </div>
-                                        <div className="flex items-center">
-                                            <Clock className="mr-1.5 h-4 w-4" />
-                                            {exam.timeLimit ? `${exam.timeLimit}分` : '無制限'}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="bg-gray-50 px-4 py-4 sm:px-6 flex justify-between items-center border-t border-gray-200">
-                                    <Link
-                                        href={`/teacher/exam/${exam.id}/edit`}
-                                        className="text-sm font-medium text-indigo-600 hover:text-indigo-500 flex items-center"
-                                    >
-                                        <Edit className="mr-1 h-4 w-4" />
-                                        編集
-                                    </Link>
-                                    <Link
-                                        href={`/student/exam/${exam.id}`}
-                                        target="_blank"
-                                        className="text-sm font-medium text-green-600 hover:text-green-500 flex items-center"
-                                    >
-                                        <Play className="mr-1 h-4 w-4" />
-                                        受験用URL
-                                    </Link>
-                                </div>
-                            </div>
+                            <ExamCard key={exam.id} exam={exam} />
                         ))}
                     </div>
                 )}

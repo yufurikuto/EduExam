@@ -27,6 +27,7 @@ model Exam {
   subject     Subject  @relation(fields: [subjectId], references: [id])
   
   questions   Question[]
+  results     ExamResult[]
 
   // Enhanced Settings
   timeLimit   Int?      // in minutes
@@ -50,4 +51,17 @@ model Question {
   correctAnswer String?
   imageUrl      String?
   score         Int    @default(10)
+}
+
+model ExamResult {
+  id            String   @id @default(uuid())
+  examId        String
+  exam          Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  
+  studentName   String
+  studentNumber String
+  score         Int
+  answers       Json     // Student answers details
+  
+  submittedAt   DateTime @default(now())
 }

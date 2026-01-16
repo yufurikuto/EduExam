@@ -128,70 +128,131 @@ export default function QuestionForm({
                                 {type === "ORDERING" ? "並べ替えの正解順序 (上から順)" : "選択肢"}
                             </label>
 
-                            {(type === "ORDERING" || type === "MULTIPLE_CHOICE") && (
-                                <div className="flex bg-gray-200 rounded p-1 text-xs">
-                                    <button
-                                        type="button"
-                                        onClick={() => setOptionType("text")}
-                                        className={`px-2 py-1 rounded flex items-center ${optionType === "text" ? "bg-white shadow" : "text-gray-500 hover:text-gray-900"}`}
-                                    >
-                                        <Type size={12} className="mr-1" /> 文字
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setOptionType("image")}
-                                        className={`px-2 py-1 rounded flex items-center ${optionType === "image" ? "bg-white shadow" : "text-gray-500 hover:text-gray-900"}`}
-                                    >
-                                        <ImageIcon size={12} className="mr-1" /> 画像
-                                    </button>
-                                </div>
-                            )}
+                            <div className="flex items-center gap-2">
+                                {type === "MULTIPLE_CHOICE" && (
+                                    <label className="flex items-center text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded cursor-pointer border border-indigo-100 hover:bg-indigo-100 transition">
+                                        <input
+                                            type="checkbox"
+                                            className="mr-1 rounded text-indigo-600 focus:ring-indigo-500"
+                                            checked={correctAnswer.startsWith("[")}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    // Switch to multiple (checkbox)
+                                                    // Convert current answer to array if exists
+                                                    setCorrectAnswer(correctAnswer ? JSON.stringify([correctAnswer]) : "[]");
+                                                } else {
+                                                    // Switch to single (radio)
+                                                    // Take first answer or empty
+                                                    try {
+                                                        const parsed = JSON.parse(correctAnswer);
+                                                        setCorrectAnswer(parsed[0] || "");
+                                                    } catch {
+                                                        setCorrectAnswer("");
+                                                    }
+                                                }
+                                            }}
+                                        />
+                                        複数選択を許可
+                                    </label>
+                                )}
+
+                                {(type === "ORDERING" || type === "MULTIPLE_CHOICE") && (
+                                    <div className="flex bg-gray-200 rounded p-1 text-xs">
+                                        <button
+                                            type="button"
+                                            onClick={() => setOptionType("text")}
+                                            className={`px-2 py-1 rounded flex items-center ${optionType === "text" ? "bg-white shadow" : "text-gray-500 hover:text-gray-900"}`}
+                                        >
+                                            <Type size={12} className="mr-1" /> 文字
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setOptionType("image")}
+                                            className={`px-2 py-1 rounded flex items-center ${optionType === "image" ? "bg-white shadow" : "text-gray-500 hover:text-gray-900"}`}
+                                        >
+                                            <ImageIcon size={12} className="mr-1" /> 画像
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
-                        {options.map((opt, idx) => (
-                            <div key={idx} className="flex items-center gap-2 border-b pb-2 last:border-0">
-                                {type === "MULTIPLE_CHOICE" && (
-                                    <input
-                                        type="radio"
-                                        name="correct"
-                                        checked={correctAnswer === String(idx + 1)}
-                                        onChange={() => setCorrectAnswer(String(idx + 1))}
-                                        className="w-4 h-4 text-indigo-600 mt-2"
-                                    />
-                                )}
-                                {type === "ORDERING" && (
-                                    <span className="text-gray-400 font-mono w-6 text-center mt-2">{idx + 1}</span>
-                                )}
+                        {options.map((opt, idx) => {
+                            const isMultiple = correctAnswer.startsWith("[");
+                            const currentIdxStr = String(idx + 1);
+                            let isChecked = false;
 
-                                <div className="flex-1">
-                                    {optionType === "text" ? (
+                            if (isMultiple) {
+                                try {
+                                    const parsed = JSON.parse(correctAnswer);
+                                    isChecked = Array.isArray(parsed) && parsed.includes(currentIdxStr);
+                                } catch { }
+                            } else {
+                                isChecked = correctAnswer === currentIdxStr;
+                            }
+
+                            return (
+                                <div key={idx} className="flex items-center gap-2 border-b pb-2 last:border-0">
+                                    {type === "MULTIPLE_CHOICE" && (
                                         <input
-                                            type="text"
-                                            value={opt}
-                                            onChange={(e) => handleOptionChange(idx, e.target.value)}
-                                            className="w-full p-2 border border-gray-300 rounded text-sm"
-                                            placeholder={`選択肢 ${idx + 1}`}
+                                            type={isMultiple ? "checkbox" : "radio"}
+                                            name="correct"
+                                            checked={isChecked}
+                                            onChange={() => {
+                                                if (isMultiple) {
+                                                    try {
+                                                        let parsed = JSON.parse(correctAnswer);
+                                                        if (!Array.isArray(parsed)) parsed = [];
+                                                        if (parsed.includes(currentIdxStr)) {
+                                                            parsed = parsed.filter((v: string) => v !== currentIdxStr);
+                                                        } else {
+                                                            parsed.push(currentIdxStr);
+                                                        }
+                                                        setCorrectAnswer(JSON.stringify(parsed.sort()));
+                                                    } catch {
+                                                        setCorrectAnswer(JSON.stringify([currentIdxStr]));
+                                                    }
+                                                } else {
+                                                    setCorrectAnswer(currentIdxStr);
+                                                }
+                                            }}
+                                            className={`w-4 h-4 text-indigo-600 mt-2 ${isMultiple ? "rounded" : ""}`}
                                         />
-                                    ) : (
-                                        <div className="mt-1">
-                                            <ImageUploader
-                                                onImageSelected={(val) => handleOptionChange(idx, val)}
-                                                initialImage={opt.startsWith("data:") || opt.startsWith("http") ? opt : undefined}
-                                                className="w-32"
-                                            />
-                                        </div>
                                     )}
-                                </div>
+                                    {type === "ORDERING" && (
+                                        <span className="text-gray-400 font-mono w-6 text-center mt-2">{idx + 1}</span>
+                                    )}
 
-                                <button
-                                    type="button"
-                                    onClick={() => removeOption(idx)}
-                                    className="text-gray-400 hover:text-red-500 mt-2"
-                                >
-                                    <Trash size={16} />
-                                </button>
-                            </div>
-                        ))}
+                                    <div className="flex-1">
+                                        {optionType === "text" ? (
+                                            <input
+                                                type="text"
+                                                value={opt}
+                                                onChange={(e) => handleOptionChange(idx, e.target.value)}
+                                                className="w-full p-2 border border-gray-300 rounded text-sm"
+                                                placeholder={`選択肢 ${idx + 1}`}
+                                            />
+                                        ) : (
+                                            <div className="mt-1">
+                                                <ImageUploader
+                                                    onImageSelected={(val) => handleOptionChange(idx, val)}
+                                                    initialImage={opt.startsWith("data:") || opt.startsWith("http") ? opt : undefined}
+                                                    className="w-32"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => removeOption(idx)}
+                                        className="text-gray-400 hover:text-red-500 mt-2"
+                                    >
+                                        <Trash size={16} />
+                                    </button>
+                                </div>
+                            )
+                        })}
                         <button
                             type="button"
                             onClick={addOption}
