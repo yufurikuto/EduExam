@@ -16,6 +16,7 @@ type Question = {
     options?: any; // DB from server action is any for options
     imageUrl?: string | null;
     correctAnswer?: string | null;
+    isMultiple?: boolean;
 };
 
 export default function StudentExamPage({
@@ -333,7 +334,7 @@ export default function StudentExamPage({
                                         {q.type === "MULTIPLE_CHOICE" && parsedOptions.length > 0 && (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 {(() => {
-                                                    const isMultiple = q.correctAnswer?.startsWith("[") || false;
+                                                    const isMultiple = q.isMultiple || false;
                                                     const rawAnswer = answers[q.id] || "";
                                                     let currentSelection: string[] = [];
                                                     if (isMultiple) {

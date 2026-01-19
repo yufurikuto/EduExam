@@ -122,11 +122,15 @@ export async function getStudentExam(id: string): Promise<any> {
 
         if (!exam) return null;
 
-        // Security: Hide correct answers from client
-        const secureQuestions = exam.questions.map((q) => ({
-            ...q,
-            correctAnswer: null, // Hide answer
-        }));
+        // Security: Hide correct answers from client but expose necessity meta-data
+        const secureQuestions = exam.questions.map((q) => {
+            const isMultiple = q.type === 'MULTIPLE_CHOICE' && q.correctAnswer?.startsWith("[") || false;
+            return {
+                ...q,
+                correctAnswer: null, // Hide answer
+                isMultiple: isMultiple,
+            };
+        });
 
         return {
             ...exam,
