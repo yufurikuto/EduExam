@@ -107,59 +107,27 @@ export default function StudentExamPage({
     const handleSubmit = async (e: React.FormEvent | null) => {
         if (e) e.preventDefault();
 
-        // Calculate score (Client-side simple grading for now)
-        let totalScore = 0;
-        let earnedScore = 0;
-
-        questions.forEach(q => {
-            totalScore += q.score;
-            const userAnswer = answers[q.id];
-
-            // Simple string strict check
-            if (userAnswer && q.correctAnswer && userAnswer === q.correctAnswer) {
-                earnedScore += q.score;
-            } else if (q.type === "MULTIPLE_CHOICE" && userAnswer && q.correctAnswer) {
-                // Check if JSON arrays match (sorted)
-                try {
-                    const u = JSON.parse(userAnswer);
-                    const c = JSON.parse(q.correctAnswer);
-                    if (Array.isArray(u) && Array.isArray(c)) {
-                        if (JSON.stringify(u.sort()) === JSON.stringify(c.sort())) {
-                            earnedScore += q.score;
-                        }
-                    } else if (String(userAnswer) === String(q.correctAnswer)) {
-                        earnedScore += q.score;
-                    }
-                } catch {
-                    if (String(userAnswer) === String(q.correctAnswer)) {
-                        earnedScore += q.score;
-                    }
-                }
-            }
-            // Add more complex grading logic for Matching/Ordering if needed
-        });
-
         // Check for preview mode
         const isPreview = new URLSearchParams(window.location.search).get("mode") === "preview";
-        if (isPreview) {
-            alert(`[プレビューモード] 送信完了シミュレーション\nスコア: ${earnedScore} / ${totalScore}`);
-            setIsSubmitted(true);
-            return;
-        }
 
-        // Server save
+        // Server submit (Grades on server)
         const result = await submitExam({
             examId: exam.id,
             studentName,
             studentNumber,
             studentClass,
-            score: earnedScore,
-            answers
+            // score: earnedScore, // Removed client score
+            answers,
+            isPreview // Pass preview flag
         });
 
         if (!result.success) {
             alert(result.error || "送信に失敗しました");
             return;
+        }
+
+        if (isPreview) {
+            alert(`[プレビューモード] 送信完了シミュレーション\nスコア: ${result.score} / ${result.totalScore}`);
         }
 
         setIsSubmitted(true);

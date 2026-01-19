@@ -120,12 +120,18 @@ export async function getStudentExam(id: string): Promise<any> {
             },
         });
 
-        // 必要なら公開フラグなどをチェックするが、今はIDを知っていれば受験可能とする
-        // ただし、正解データを含めるかどうかはアプリのロジック次第。
-        // クライアント側で答え合わせする今の実装なら正解を含む必要がある。
-        // セキュリティを高めるなら正解は隠して、サーバーで採点するべき。
-        // 今回は簡易実装でそのまま返す。
-        return exam;
+        if (!exam) return null;
+
+        // Security: Hide correct answers from client
+        const secureQuestions = exam.questions.map((q) => ({
+            ...q,
+            correctAnswer: null, // Hide answer
+        }));
+
+        return {
+            ...exam,
+            questions: secureQuestions
+        };
     } catch (error) {
         console.error('Failed to get student exam:', error);
         return null;
@@ -179,27 +185,89 @@ export async function saveExamQuestions(examId: string, questions: Omit<Question
     }
 }
 
-// 試験結果の提出
+// 試験結果の提出 (サーバーサイド採点)
 export async function submitExam(data: {
     examId: string;
     studentName: string;
     studentNumber: string;
     studentClass: string;
-    score: number;
+    // score: number; // Client calculated score is ignored/removed
     answers: Record<string, string>;
-}): Promise<{ success: boolean; error?: string }> {
+    isPreview?: boolean;
+}): Promise<{ success: boolean; score?: number; totalScore?: number; error?: string }> {
     try {
+        // Fetch exam with correct answers
+        const exam = await prisma.exam.findUnique({
+            where: { id: data.examId },
+            include: { questions: true }
+        });
+
+        if (!exam) return { success: false, error: '試験が見つかりません。' };
+
+        // Server-side Grading Logic
+        let earnedScore = 0;
+        let totalScore = 0;
+
+        exam.questions.forEach((q) => {
+            totalScore += q.score;
+            const userAnswer = data.answers[q.id];
+
+            if (!userAnswer || !q.correctAnswer) return;
+
+            let isCorrect = false;
+
+            if (q.type === 'MULTIPLE_CHOICE') {
+                // Handle JSON array comparison
+                try {
+                    // Try parsing both as JSON
+                    const userArr = JSON.parse(userAnswer);
+                    const correctArr = JSON.parse(q.correctAnswer);
+
+                    if (Array.isArray(userArr) && Array.isArray(correctArr)) {
+                        // Sort and compare arrays
+                        if (JSON.stringify(userArr.sort()) === JSON.stringify(correctArr.sort())) {
+                            isCorrect = true;
+                        }
+                    } else {
+                        // Fallback to simple comparison if not array
+                        if (String(userArr) === String(correctArr)) isCorrect = true;
+                    }
+                } catch {
+                    // Fallback string strict comparison
+                    if (userAnswer === q.correctAnswer) isCorrect = true;
+                }
+            } else if (q.type === 'TRUE_FALSE') {
+                // Simple string comparison ("true" or "false")
+                if (userAnswer === q.correctAnswer) isCorrect = true;
+            } else {
+                // TEXT, FILL_IN_THE_BLANK, ORDERING, MATCHING
+                // Simple strict comparison for now. 
+                // In future: trim(), normalize, case-insensitivity options usually go here.
+                if (userAnswer.trim() === q.correctAnswer.trim()) {
+                    isCorrect = true;
+                }
+            }
+
+            if (isCorrect) {
+                earnedScore += q.score;
+            }
+        });
+
+        if (data.isPreview) {
+            return { success: true, score: earnedScore, totalScore };
+        }
+
         await prisma.examResult.create({
             data: {
                 examId: data.examId,
                 studentName: data.studentName,
                 studentNumber: data.studentNumber,
                 studentClass: data.studentClass,
-                score: data.score,
+                score: earnedScore, // Use server calculated score
                 answers: data.answers,
             },
         });
-        return { success: true };
+        return { success: true, score: earnedScore, totalScore };
     } catch (error) {
         console.error('Failed to submit exam:', error);
         return { success: false, error: '送信に失敗しました。' };
