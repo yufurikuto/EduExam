@@ -20,8 +20,10 @@ export default function FillInTheBlankQuestion({
     const [inputs, setInputs] = useState<Record<number, string>>(initialAnswers);
 
     // Parse text to identify segments and blanks
+    // Normalize full-width brackets to half-width for better Japan localization support
+    const normalizedText = text.replace(/｛/g, '{').replace(/｝/g, '}');
     // Example: "Apple is {red}." -> ["Apple is ", "{red}", "."]
-    const parts = text.split(/({[^}]+})/g);
+    const parts = normalizedText.split(/({[^}]+})/g);
 
     const handleInputChange = (index: number, value: string) => {
         const newInputs = { ...inputs, [index]: value };

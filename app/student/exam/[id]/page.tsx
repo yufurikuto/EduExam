@@ -42,7 +42,20 @@ export default function StudentExamPage({
             if (data) {
                 setExam(data);
                 if (data.questions) {
-                    setQuestions(data.questions as any);
+                    const loadedQuestions = data.questions.map((q: any) => {
+                        // Shuffle options for Loading type to avoid showing answer
+                        if (q.type === 'ORDERING' && Array.isArray(q.options)) {
+                            // Simple Fisher-Yates shuffle
+                            const shuffled = [...q.options];
+                            for (let i = shuffled.length - 1; i > 0; i--) {
+                                const j = Math.floor(Math.random() * (i + 1));
+                                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                            }
+                            return { ...q, options: shuffled };
+                        }
+                        return q;
+                    });
+                    setQuestions(loadedQuestions);
                 }
                 if (data.timeLimit) {
                     setTimeLeft(data.timeLimit * 60); // Convert minutes to seconds
@@ -277,10 +290,11 @@ export default function StudentExamPage({
                                         </span>
                                         <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">
                                             {q.type === 'MULTIPLE_CHOICE' ? '選択問題' :
-                                                q.type === 'TEXT' ? '記述問題' :
-                                                    q.type === 'ORDERING' ? '並び替え' :
-                                                        q.type === 'MATCHING' ? '組み合わせ' :
-                                                            q.type === 'FILL_IN_THE_BLANK' ? '穴埋め' : '問題'}
+                                                q.type === 'TRUE_FALSE' ? '〇×問題' :
+                                                    q.type === 'TEXT' ? '記述問題' :
+                                                        q.type === 'ORDERING' ? '並び替え' :
+                                                            q.type === 'MATCHING' ? '組み合わせ' :
+                                                                q.type === 'FILL_IN_THE_BLANK' ? '穴埋め' : '問題'}
                                         </span>
                                     </div>
                                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
@@ -311,6 +325,41 @@ export default function StudentExamPage({
                                                 text={q.text}
                                                 onAnswerChange={(val) => handleAnswerChange(q.id, JSON.stringify(val))}
                                             />
+                                        )}
+
+                                        {q.type === "TRUE_FALSE" && (
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                {['true', 'false'].map((val) => {
+                                                    const isTrue = val === 'true';
+                                                    const isChecked = answers[q.id] === val;
+                                                    return (
+                                                        <label
+                                                            key={val}
+                                                            className={`
+                                                                relative block p-4 rounded-lg border-2 cursor-pointer transition-all duration-200
+                                                                ${isChecked
+                                                                    ? (isTrue ? "border-green-600 bg-green-50" : "border-red-600 bg-red-50")
+                                                                    : "border-gray-200 hover:bg-gray-50"
+                                                                }
+                                                            `}
+                                                        >
+                                                            <div className="flex items-center justify-center">
+                                                                <input
+                                                                    type="radio"
+                                                                    name={`q-${q.id}`}
+                                                                    value={val}
+                                                                    checked={isChecked}
+                                                                    onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                                                                    className="sr-only"
+                                                                />
+                                                                <div className={`text-2xl font-bold ${isTrue ? "text-green-600" : "text-red-600"}`}>
+                                                                    {isTrue ? "⭕ 正解 (True)" : "❌ 不正解 (False)"}
+                                                                </div>
+                                                            </div>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
                                         )}
 
                                         {q.type === "MULTIPLE_CHOICE" && parsedOptions.length > 0 && (
