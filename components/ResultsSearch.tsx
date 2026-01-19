@@ -26,7 +26,7 @@ export default function ResultsSearch() {
             <input
                 type="text"
                 className="block w-full rounded-md border-gray-300 pl-10 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2"
-                placeholder="名前や出席番号で検索..."
+                placeholder="名前、番号、クラスで検索..."
                 onChange={(e) => handleSearch(e.target.value)}
                 defaultValue={searchParams.get("query")?.toString()}
             />

@@ -184,6 +184,7 @@ export async function submitExam(data: {
     examId: string;
     studentName: string;
     studentNumber: string;
+    studentClass: string;
     score: number;
     answers: Record<string, string>;
 }): Promise<{ success: boolean; error?: string }> {
@@ -193,6 +194,7 @@ export async function submitExam(data: {
                 examId: data.examId,
                 studentName: data.studentName,
                 studentNumber: data.studentNumber,
+                studentClass: data.studentClass,
                 score: data.score,
                 answers: data.answers,
             },
@@ -206,7 +208,7 @@ export async function submitExam(data: {
 
 // 結果一覧取得 (先生用)
 export async function getExamResults(examId: string, options?: {
-    sortBy?: 'score' | 'submittedAt' | 'studentNumber';
+    sortBy?: 'score' | 'submittedAt' | 'studentNumber' | 'studentClass';
     sortOrder?: 'asc' | 'desc';
     query?: string;
 }): Promise<any[]> {
@@ -223,8 +225,9 @@ export async function getExamResults(examId: string, options?: {
         const where: any = { examId };
         if (options?.query) {
             where.OR = [
-                { studentName: { contains: options.query } }, // Case insensitive via mode:'insensitive' if postgres specific? Default is case sensitive usually in Prisma unless specified or using localized collation. SQLite/Postgres varies. Let's trust default or add mode later if needed.
-                { studentNumber: { contains: options.query } }
+                { studentName: { contains: options.query } },
+                { studentNumber: { contains: options.query } },
+                { studentClass: { contains: options.query } }
             ];
         }
 

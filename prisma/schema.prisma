@@ -60,6 +60,7 @@ model ExamResult {
   
   studentName   String
   studentNumber String
+  studentClass  String?
   score         Int
   answers       Json     // Student answers details
   

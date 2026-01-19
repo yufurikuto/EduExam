@@ -12,7 +12,7 @@ export default async function ExamResultsPage({
     params: { id: string };
     searchParams: {
         query?: string;
-        sortBy?: "score" | "submittedAt" | "studentNumber";
+        sortBy?: "score" | "submittedAt" | "studentNumber" | "studentClass";
         sortOrder?: "asc" | "desc";
     };
 }) {
@@ -37,7 +37,7 @@ export default async function ExamResultsPage({
         field,
         label,
     }: {
-        field: "score" | "submittedAt" | "studentNumber";
+        field: "score" | "submittedAt" | "studentNumber" | "studentClass";
         label: string;
     }) => {
         const isCurrent = sortBy === field;
@@ -93,6 +93,9 @@ export default async function ExamResultsPage({
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        <SortHeader field="studentClass" label="クラス" />
+                                    </th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         <SortHeader field="studentNumber" label="出席番号" />
                                     </th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -109,13 +112,16 @@ export default async function ExamResultsPage({
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {results.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500">
+                                        <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
                                             {searchParams.query ? "検索条件に一致する回答がありません" : "まだ回答がありません"}
                                         </td>
                                     </tr>
                                 ) : (
                                     results.map((result) => (
                                         <tr key={result.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                                {result.studentClass}
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                                 {result.studentNumber}
                                             </td>

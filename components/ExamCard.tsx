@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Edit, Play, Copy, QrCode, Clock, BookOpen, Check } from "lucide-react";
+import { Edit, Eye, Copy, QrCode, Clock, BookOpen, Check } from "lucide-react";
 import { useState } from "react";
 import QRCode from "react-qr-code";
 
@@ -77,12 +77,12 @@ export default function ExamCard({ exam }: ExamCardProps) {
                         編集
                     </Link>
                     <Link
-                        href={`/student/exam/${exam.id}`}
+                        href={`/student/exam/${exam.id}?mode=preview`}
                         target="_blank"
                         className="text-sm font-medium text-gray-600 hover:text-gray-900 flex items-center"
                     >
-                        <Play className="mr-1 h-4 w-4" />
-                        確認
+                        <Eye className="mr-1 h-4 w-4" />
+                        プレビュー
                     </Link>
                 </div>
 
