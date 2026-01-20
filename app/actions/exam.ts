@@ -261,6 +261,14 @@ export async function submitExam(data: {
             return { success: true, score: earnedScore, totalScore };
         }
 
+        console.log("Submitting exam result:", {
+            examId: data.examId,
+            studentName: data.studentName,
+            // studentNumber: data.studentNumber,
+            class: data.studentClass,
+            score: earnedScore
+        });
+
         await prisma.examResult.create({
             data: {
                 examId: data.examId,
@@ -274,7 +282,8 @@ export async function submitExam(data: {
         return { success: true, score: earnedScore, totalScore };
     } catch (error) {
         console.error('Failed to submit exam:', error);
-        return { success: false, error: '送信に失敗しました。' };
+        // Return actual error message for debugging
+        return { success: false, error: `送信に失敗しました: ${error instanceof Error ? error.message : String(error)}` };
     }
 }
 
