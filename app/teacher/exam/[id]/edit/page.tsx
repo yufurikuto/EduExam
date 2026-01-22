@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Edit2, Archive, Trash2, Save, Upload, ArrowLeft } from "lucide-react";
+import { Plus, Edit2, Archive, Trash2, Save, Upload, ArrowLeft, Settings } from "lucide-react";
 import QuestionForm from "@/components/QuestionForm";
 import QuestionImportFromExam from "@/components/QuestionImportFromExam";
-import { getExam, saveExamQuestions, type Question as DBQuestion } from "@/app/actions/exam";
+import { getExam, saveExamQuestions, updateExamSettings, type Question as DBQuestion } from "@/app/actions/exam";
+import ExamSettingsModal from "@/components/ExamSettingsModal";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -31,6 +32,7 @@ export default function ExamEditorPage({
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showImport, setShowImport] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
 
     useEffect(() => {
         loadExam();
@@ -129,6 +131,16 @@ export default function ExamEditorPage({
         setShowImport(true);
     };
 
+    const handleSaveSettings = async (data: any) => {
+        const result = await updateExamSettings(params.id, data);
+        if (result.success) {
+            setExam((prev: any) => ({ ...prev, ...data }));
+            alert("設定を更新しました");
+        } else {
+            throw new Error(result.error);
+        }
+    };
+
     if (loading) return <div className="p-10 text-center">読み込み中...</div>;
 
     return (
@@ -153,6 +165,13 @@ export default function ExamEditorPage({
                     >
                         <Upload className="mr-2 h-4 w-4" />
                         過去問からコピー
+                    </button>
+                    <button
+                        onClick={() => setShowSettings(true)}
+                        className="flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                    >
+                        <Settings className="mr-2 h-4 w-4" />
+                        設定編集
                     </button>
                     <button
                         onClick={handleSaveDatabase}
@@ -254,6 +273,21 @@ export default function ExamEditorPage({
                 <QuestionImportFromExam
                     onImport={handleImportQuestions}
                     onClose={() => setShowImport(false)}
+                />
+            )}
+            {showSettings && exam && (
+                <ExamSettingsModal
+                    isOpen={showSettings}
+                    onClose={() => setShowSettings(false)}
+                    onSave={handleSaveSettings}
+                    initialData={{
+                        title: exam.title,
+                        description: exam.description || "",
+                        timeLimit: exam.timeLimit,
+                        passingScore: exam.passingScore,
+                        isShuffle: exam.isShuffle,
+                        className: exam.className,
+                    }}
                 />
             )}
         </div>

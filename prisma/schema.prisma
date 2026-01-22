@@ -33,6 +33,7 @@ model Exam {
   timeLimit   Int?      // in minutes
   passingScore Int?
   isShuffle   Boolean   @default(false)
+  className   String?   // Target class name
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

@@ -60,6 +60,7 @@ export async function createExam(data: {
     timeLimit?: number;
     passingScore?: number;
     isShuffle?: boolean;
+    className?: string; // New
 }): Promise<{ success: boolean; examId?: string; error?: string }> {
     try {
         const teacherId = await requireAuth();
@@ -71,6 +72,7 @@ export async function createExam(data: {
                 timeLimit: data.timeLimit,
                 passingScore: data.passingScore,
                 isShuffle: data.isShuffle || false,
+                className: data.className, // New
                 teacherId,
             },
         });
@@ -79,6 +81,43 @@ export async function createExam(data: {
     } catch (error) {
         console.error('Failed to create exam:', error);
         return { success: false, error: '試験の作成に失敗しました。' };
+    }
+}
+
+// 試験設定の更新
+export async function updateExamSettings(examId: string, data: {
+    title: string;
+    description?: string;
+    timeLimit?: number;
+    passingScore?: number;
+    isShuffle?: boolean;
+    className?: string;
+}): Promise<{ success: boolean; error?: string }> {
+    try {
+        const teacherId = await requireAuth();
+        const exam = await prisma.exam.findUnique({ where: { id: examId } });
+
+        if (!exam || exam.teacherId !== teacherId) {
+            return { success: false, error: '権限がありません。' };
+        }
+
+        await prisma.exam.update({
+            where: { id: examId },
+            data: {
+                title: data.title,
+                description: data.description,
+                timeLimit: data.timeLimit,
+                passingScore: data.passingScore,
+                isShuffle: data.isShuffle,
+                className: data.className,
+            }
+        });
+
+        revalidatePath(`/teacher/exam/${examId}/edit`);
+        return { success: true };
+    } catch (error) {
+        console.error('Failed to update exam settings:', error);
+        return { success: false, error: '設定の更新に失敗しました。' };
     }
 }
 
@@ -264,8 +303,7 @@ export async function submitExam(data: {
         console.log("Submitting exam result:", {
             examId: data.examId,
             studentName: data.studentName,
-            // studentNumber: data.studentNumber,
-            class: data.studentClass,
+            class: exam.className, // Use class from Exam
             score: earnedScore
         });
 
@@ -274,7 +312,7 @@ export async function submitExam(data: {
                 examId: data.examId,
                 studentName: data.studentName,
                 studentNumber: data.studentNumber,
-                studentClass: data.studentClass,
+                studentClass: exam.className || data.studentClass || '',
                 score: earnedScore, // Use server calculated score
                 answers: data.answers,
             },

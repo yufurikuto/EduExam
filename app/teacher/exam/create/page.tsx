@@ -34,6 +34,7 @@ export default function CreateExamPage() {
             timeLimit: Number(formData.get("timeLimit")) || undefined,
             passingScore: Number(formData.get("passingScore")) || undefined,
             isShuffle: formData.get("isShuffle") === "on",
+            className: (formData.get("className") as string) || undefined,
         };
 
         const result = await createExam(examData);
@@ -86,6 +87,18 @@ export default function CreateExamPage() {
                             </select>
                             <SubjectManager subjects={subjects} onUpdate={loadSubjects} />
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                            対象クラス (任意)
+                        </label>
+                        <input
+                            type="text"
+                            name="className"
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="例: 1年A組"
+                        />
                     </div>
 
                     {/* Advanced Settings */}
