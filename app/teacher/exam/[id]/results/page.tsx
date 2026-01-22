@@ -81,7 +81,13 @@ export default async function ExamResultsPage({
                                 合計 {results.length} 件の回答
                             </p>
                         </div>
-                        <div className="mt-4 flex md:mt-0 md:ml-4">
+                        <div className="mt-4 flex md:mt-0 md:ml-4 space-x-2">
+                            <Link
+                                href={`/teacher/exam/${params.id}/analysis`}
+                                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            >
+                                分析ダッシュボード
+                            </Link>
                             <ResultsSearch />
                         </div>
                     </div>
@@ -107,12 +113,15 @@ export default async function ExamResultsPage({
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         <SortHeader field="submittedAt" label="提出日時" />
                                     </th>
+                                    <th scope="col" className="relative px-6 py-3">
+                                        <span className="sr-only">詳細</span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {results.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
+                                        <td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-500">
                                             {searchParams.query ? "検索条件に一致する回答がありません" : "まだ回答がありません"}
                                         </td>
                                     </tr>
@@ -135,6 +144,11 @@ export default async function ExamResultsPage({
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                                 {new Date(result.submittedAt).toLocaleString()}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <Link href={`/teacher/exam/${params.id}/results/${result.id}`} className="text-indigo-600 hover:text-indigo-900">
+                                                    詳細
+                                                </Link>
                                             </td>
                                         </tr>
                                     ))

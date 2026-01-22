@@ -52,6 +52,7 @@ model Question {
   correctAnswer String?
   imageUrl      String?
   score         Int    @default(10)
+  answerDetails AnswerDetail[]
 }
 
 model ExamResult {
@@ -63,7 +64,27 @@ model ExamResult {
   studentNumber String
   studentClass  String?
   score         Int
-  answers       Json     // Student answers details
+  answers       Json     // Student answers details (Keep for backup/compat)
+  answerDetails AnswerDetail[] // New detailed answers
   
   submittedAt   DateTime @default(now())
+}
+
+model AnswerDetail {
+  id              String   @id @default(uuid())
+  
+  examResultId    String
+  examResult      ExamResult @relation(fields: [examResultId], references: [id], onDelete: Cascade)
+  
+  questionId      String
+  question        Question @relation(fields: [questionId], references: [id])
+  
+  answer          String   // Student's answer
+  isCorrect       Boolean
+  score           Int
+  teacherComment  String?
+  isManualGraded  Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
