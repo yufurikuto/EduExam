@@ -33,6 +33,7 @@ export default function StudentExamPage({
     const [questions, setQuestions] = useState<Question[]>([]);
     const [answers, setAnswers] = useState<Record<string, string>>({});
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false); // Add lock state
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -43,17 +44,30 @@ export default function StudentExamPage({
                 setExam(data);
                 if (data.questions) {
                     const loadedQuestions = data.questions.map((q: any) => {
-                        // Shuffle options for Loading type to avoid showing answer
-                        if (q.type === 'ORDERING' && Array.isArray(q.options)) {
+                        let parsedOpts = q.options;
+
+                        // Parse JSON string if needed
+                        if (typeof q.options === 'string') {
+                            try {
+                                parsedOpts = JSON.parse(q.options);
+                            } catch {
+                                parsedOpts = [];
+                            }
+                        }
+
+                        // Shuffle options for Loading/Ordering type to avoid showing answer
+                        if (q.type === 'ORDERING' && Array.isArray(parsedOpts)) {
                             // Simple Fisher-Yates shuffle
-                            const shuffled = [...q.options];
+                            const shuffled = [...parsedOpts];
                             for (let i = shuffled.length - 1; i > 0; i--) {
                                 const j = Math.floor(Math.random() * (i + 1));
                                 [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
                             }
                             return { ...q, options: shuffled };
                         }
-                        return q;
+
+                        // Return with parsed options for consistency
+                        return { ...q, options: parsedOpts };
                     });
                     setQuestions(loadedQuestions);
                 }
@@ -70,7 +84,7 @@ export default function StudentExamPage({
 
     // Timer logic
     useEffect(() => {
-        if (!isStarted || timeLeft === null || isSubmitted) return;
+        if (!isStarted || timeLeft === null || isSubmitted || isSubmitting) return;
 
         if (timeLeft <= 0) {
             alert("制限時間が終了しました！自動的に送信されます。");
@@ -83,7 +97,7 @@ export default function StudentExamPage({
         }, 1000);
 
         return () => clearInterval(timer);
-    }, [timeLeft, isSubmitted, isStarted]);
+    }, [timeLeft, isSubmitted, isSubmitting, isStarted]);
 
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
@@ -107,6 +121,11 @@ export default function StudentExamPage({
     const handleSubmit = async (e: React.FormEvent | null) => {
         if (e) e.preventDefault();
 
+        // Prevent duplicate submission
+        if (isSubmitted || isSubmitting) return;
+
+        setIsSubmitting(true); // Lock
+
         // Check for preview mode
         const isPreview = new URLSearchParams(window.location.search).get("mode") === "preview";
 
@@ -122,6 +141,7 @@ export default function StudentExamPage({
 
         if (!result.success) {
             alert(result.error || "送信に失敗しました");
+            setIsSubmitting(false); // Unlock on error
             return;
         }
 
@@ -231,12 +251,8 @@ export default function StudentExamPage({
                     )}
 
                     {questions.map((q, idx) => {
-                        let parsedOptions: any[] = [];
-                        if (Array.isArray(q.options)) {
-                            parsedOptions = q.options;
-                        } else if (typeof q.options === 'string') {
-                            try { parsedOptions = JSON.parse(q.options); } catch { }
-                        }
+                        // Use pre-parsed options from state
+                        const parsedOptions = q.options || [];
 
                         return (
                             <div key={q.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -319,7 +335,7 @@ export default function StudentExamPage({
                                             </div>
                                         )}
 
-                                        {q.type === "MULTIPLE_CHOICE" && parsedOptions.length > 0 && (
+                                        {q.type === "MULTIPLE_CHOICE" && Array.isArray(parsedOptions) && parsedOptions.length > 0 && (
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 {(() => {
                                                     const isMultiple = q.isMultiple || false;
@@ -396,7 +412,7 @@ export default function StudentExamPage({
                                             </div>
                                         )}
 
-                                        {q.type === "ORDERING" && parsedOptions.length > 0 && (
+                                        {q.type === "ORDERING" && Array.isArray(parsedOptions) && parsedOptions.length > 0 && (
                                             <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
                                                 <OrderingQuestion
                                                     questionId={q.id}
@@ -406,7 +422,7 @@ export default function StudentExamPage({
                                             </div>
                                         )}
 
-                                        {q.type === "MATCHING" && parsedOptions.length > 0 && (
+                                        {q.type === "MATCHING" && Array.isArray(parsedOptions) && parsedOptions.length > 0 && (
                                             <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
                                                 <MatchingQuestion
                                                     questionId={q.id}
