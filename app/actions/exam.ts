@@ -262,11 +262,19 @@ export async function submitExam(data: {
                 if (q.type === 'MULTIPLE_CHOICE') {
                     // Handle JSON array comparison
                     try {
-                        // Try parsing both as JSON
                         const userArr = JSON.parse(userAnswer);
-                        const correctArr = JSON.parse(q.correctAnswer || "[]");
+                        let correctArr;
+                        try {
+                            correctArr = JSON.parse(q.correctAnswer || "[]");
+                        } catch {
+                            // If correctAnswer is not JSON array (legacy single val), treat as single item array
+                            correctArr = [q.correctAnswer];
+                        }
 
-                        if (Array.isArray(userArr) && Array.isArray(correctArr)) {
+                        if (Array.isArray(userArr)) {
+                            // If correctArr is not array (string), make it array
+                            if (!Array.isArray(correctArr)) correctArr = [correctArr];
+
                             // Sort and compare arrays
                             if (JSON.stringify(userArr.sort()) === JSON.stringify(correctArr.sort())) {
                                 isCorrect = true;
@@ -282,9 +290,80 @@ export async function submitExam(data: {
                 } else if (q.type === 'TRUE_FALSE') {
                     // Simple string comparison ("true" or "false")
                     if (userAnswer === q.correctAnswer) isCorrect = true;
+                } else if (q.type === 'ORDERING') {
+                    // Correct answer is the original order of options
+                    try {
+                        let originalOptions: string[] = [];
+                        if (Array.isArray(q.options)) {
+                            originalOptions = q.options as string[];
+                        } else if (typeof q.options === 'string') {
+                            originalOptions = JSON.parse(q.options);
+                        }
+
+                        // User answer is comma separated string
+                        const expectedAnswer = originalOptions.join(',');
+                        if (userAnswer === expectedAnswer) {
+                            isCorrect = true;
+                        }
+                    } catch (e) {
+                        console.error("Error grading ORDERING:", e);
+                    }
+                } else if (q.type === 'MATCHING') {
+                    // Correct answer is 0:0,1:1,2:2... (assuming pairs are stored as correct pairs)
+                    // Because questions are created as correct pairs.
+                    try {
+                        let pairsCount = 0;
+                        if (Array.isArray(q.options)) {
+                            pairsCount = q.options.length;
+                        } else if (typeof q.options === 'string') {
+                            const parsed = JSON.parse(q.options);
+                            if (Array.isArray(parsed)) pairsCount = parsed.length;
+                        }
+
+                        // Generate expected string: "0:0,1:1,..."
+                        const expectedPairs = [];
+                        for (let i = 0; i < pairsCount; i++) {
+                            expectedPairs.push(`${i}:${i}`);
+                        }
+
+                        // Sort both expected and user answers to ensure order doesn't matter
+                        // User answer format: "0:0,1:1"
+                        const normalizeAnswer = (str: string) => {
+                            return str.split(',').sort().join(',');
+                        }
+
+                        if (normalizeAnswer(userAnswer) === normalizeAnswer(expectedPairs.join(','))) {
+                            isCorrect = true;
+                        }
+                    } catch (e) {
+                        console.error("Error grading MATCHING:", e);
+                    }
+                } else if (q.type === 'FILL_IN_THE_BLANK') {
+                    try {
+                        // Parse text to find {answers}
+                        // Normalize brackets
+                        const normalizedText = q.text.replace(/｛/g, '{').replace(/｝/g, '}');
+                        const matches = normalizedText.match(/{([^}]+)}/g);
+
+                        if (matches) {
+                            const correctAnswers = matches.map(m => m.slice(1, -1).trim());
+                            const userAnswersObj = JSON.parse(userAnswer); // {"0": "ans", "1": "ans"}
+
+                            let allCorrect = true;
+                            correctAnswers.forEach((ans, idx) => {
+                                const userAns = userAnswersObj[String(idx)];
+                                if (!userAns || userAns.trim() !== ans) {
+                                    allCorrect = false;
+                                }
+                            });
+
+                            if (allCorrect) isCorrect = true;
+                        }
+                    } catch (e) {
+                        console.error("Error grading FILL_IN_THE_BLANK:", e);
+                    }
                 } else {
-                    // TEXT, FILL_IN_THE_BLANK, ORDERING, MATCHING
-                    // Simple strict comparison for now. 
+                    // TEXT - Manual grading usually, or exact match if simple
                     if (userAnswer.trim() === (q.correctAnswer || "").trim()) {
                         isCorrect = true;
                     }
