@@ -52,6 +52,88 @@ export default function ExamResultDetailPage({ params }: { params: { id: string;
         }
     };
 
+    const formatCorrectAnswer = (q: any) => {
+        if (!q) return "不明";
+
+        try {
+            if (q.type === "MULTIPLE_CHOICE") {
+                let indices: string[] = [];
+                // Try JSON parse first (for multi-select)
+                try {
+                    const parsed = JSON.parse(q.correctAnswer);
+                    if (Array.isArray(parsed)) indices = parsed;
+                    else indices = [String(parsed)];
+                } catch {
+                    // Single string
+                    indices = [q.correctAnswer];
+                }
+
+                // Map indices to option text
+                // Options can be string or JSON string array
+                let options: string[] = [];
+                if (Array.isArray(q.options)) options = q.options;
+                else if (typeof q.options === 'string') {
+                    try { options = JSON.parse(q.options); } catch { }
+                }
+
+                return indices.map(i => {
+                    const idx = parseInt(i) - 1;
+                    return options[idx] || `選択肢${i}`;
+                }).join(", ");
+            }
+
+            if (q.type === "TRUE_FALSE") {
+                return q.correctAnswer === "true" ? "○ (True)" : "× (False)";
+            }
+
+            if (q.type === "ORDERING") {
+                // For Ordering, the 'options' field stored in DB IS the correct order
+                let options: string[] = [];
+                if (Array.isArray(q.options)) options = q.options;
+                else if (typeof q.options === 'string') {
+                    try { options = JSON.parse(q.options); } catch { }
+                }
+                return options.map((opt, i) => `${i + 1}. ${opt}`).join("\n");
+            }
+
+            if (q.type === "MATCHING") {
+                // Options contains [{left: "A", right: "B"}] or similar
+                let pairs: any[] = [];
+                if (Array.isArray(q.options)) pairs = q.options;
+                else if (typeof q.options === 'string') {
+                    try { pairs = JSON.parse(q.options); } catch { }
+                }
+
+                return pairs.map((p: any) => {
+                    let left = p.left, right = p.right;
+                    // Handle JSON strings in pairs if double-serialized
+                    try {
+                        if (typeof p === 'string') {
+                            const parsed = JSON.parse(p);
+                            left = parsed.left;
+                            right = parsed.right;
+                        }
+                    } catch { }
+                    return `${left} ↔ ${right}`;
+                }).join("\n");
+            }
+
+            if (q.type === "FILL_IN_THE_BLANK") {
+                // Extract from text: {answer}
+                // Normalize brackets first
+                const normalizedText = q.text.replace(/｛/g, '{').replace(/｝/g, '}');
+                const matches = normalizedText.match(/{([^}]+)}/g);
+                if (matches) {
+                    return matches.map((m: string) => m.slice(1, -1).trim()).join(", ");
+                }
+            }
+
+            return q.correctAnswer || "(登録なし)";
+        } catch (e) {
+            return "表示エラー";
+        }
+    };
+
     if (loading) return <div className="p-8 text-center">読み込み中...</div>;
     if (!result) return <div className="p-8 text-center text-red-500">データが見つかりません。</div>;
 
@@ -115,7 +197,7 @@ export default function ExamResultDetailPage({ params }: { params: { id: string;
                             </div>
                             <div className="bg-blue-50 p-3 rounded">
                                 <p className="text-xs text-blue-500 uppercase">正解</p>
-                                <p className="font-mono text-sm mt-1 whitespace-pre-wrap">{detail.question.correctAnswer}</p>
+                                <p className="font-mono text-sm mt-1 whitespace-pre-wrap">{formatCorrectAnswer(detail.question)}</p>
                             </div>
                         </div>
 
