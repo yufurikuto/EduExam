@@ -67,6 +67,18 @@ export default function StudentExamPage({
                         }
 
                         // Return with parsed options for consistency
+                        if (q.type === 'MATCHING' && Array.isArray(parsedOpts)) {
+                            const formattedPairs = parsedOpts.map((opt: any) => {
+                                try {
+                                    if (typeof opt === 'string') return JSON.parse(opt);
+                                    return opt;
+                                } catch {
+                                    return { left: String(opt), right: String(opt) };
+                                }
+                            });
+                            return { ...q, options: formattedPairs };
+                        }
+
                         return { ...q, options: parsedOpts };
                     });
                     setQuestions(loadedQuestions);
@@ -426,14 +438,7 @@ export default function StudentExamPage({
                                             <div className="bg-gray-50 p-6 rounded-lg border border-gray-200">
                                                 <MatchingQuestion
                                                     questionId={q.id}
-                                                    pairs={parsedOptions.map((opt: any) => {
-                                                        try {
-                                                            if (typeof opt === 'string') return JSON.parse(opt);
-                                                            return opt;
-                                                        } catch {
-                                                            return { left: String(opt), right: String(opt) };
-                                                        }
-                                                    })}
+                                                    pairs={parsedOptions}
                                                     onAnswerChange={(val) => handleAnswerChange(q.id, val)}
                                                 />
                                             </div>
