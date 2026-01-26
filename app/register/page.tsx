@@ -4,14 +4,29 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { register } from "@/app/actions/auth";
+
 export default function RegisterPage() {
     const router = useRouter();
     const [error, setError] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        // 登録ロジックのモック
-        router.push("/login");
+        setLoading(true);
+        setError("");
+
+        const formData = new FormData(e.currentTarget);
+        const result = await register(formData);
+
+        if (result.success) {
+            // Auto login logic handled in server action (cookie set)
+            router.push("/teacher/dashboard");
+            router.refresh();
+        } else {
+            setError(result.error || "登録に失敗しました");
+            setLoading(false);
+        }
     };
 
     return (
@@ -33,7 +48,7 @@ export default function RegisterPage() {
                             htmlFor="username"
                             className="block text-sm font-medium text-gray-700"
                         >
-                            ユーザーID
+                            名前 (表示用)
                         </label>
                         <input
                             type="text"
@@ -41,7 +56,7 @@ export default function RegisterPage() {
                             name="username"
                             required
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                            placeholder="ユーザー名"
+                            placeholder="山田 太郎"
                         />
                     </div>
 
@@ -58,7 +73,7 @@ export default function RegisterPage() {
                             name="email"
                             required
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                            placeholder="example@mail.com"
+                            placeholder="teacher@example.com"
                         />
                     </div>
 
@@ -75,25 +90,25 @@ export default function RegisterPage() {
                             name="password"
                             required
                             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="8文字以上推奨"
                         />
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            利用目的
+                            アカウント種別
                         </label>
                         <div className="flex space-x-4">
-                            <input type="hidden" name="role" value="TEACHER" />
-                            {/* 現状、教師のみ登録可とする */}
-                            <span className="text-gray-600 text-sm">教員として登録（固定）</span>
+                            <span className="text-gray-600 text-sm bg-gray-100 px-2 py-1 rounded">教員 (先生)</span>
                         </div>
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700 transition duration-200"
+                        disabled={loading}
+                        className="w-full bg-indigo-600 text-white font-bold py-2 px-4 rounded hover:bg-indigo-700 transition duration-200 disabled:bg-indigo-400"
                     >
-                        登録する
+                        {loading ? "登録中..." : "登録する"}
                     </button>
                 </form>
 
