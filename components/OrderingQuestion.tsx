@@ -34,7 +34,11 @@ export default function OrderingQuestion({
     const [items, setItems] = useState(options);
 
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 8, // 8px移動したらドラッグ開始 (スクロール判定用)
+            },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })

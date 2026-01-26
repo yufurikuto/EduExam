@@ -15,6 +15,7 @@ export function SortableItem({ id, children }: { id: string; children: React.Rea
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
+        touchAction: "none", // Prevent scrolling while dragging
     };
 
     return (

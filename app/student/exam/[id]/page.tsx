@@ -287,7 +287,7 @@ export default function StudentExamPage({
                                     </span>
                                 </div>
 
-                                <div className="p-6 md:p-8">
+                                <div className="p-4 sm:p-6 md:p-8">
                                     {q.type !== "FILL_IN_THE_BLANK" && (
                                         <div className="mb-6 text-gray-900 text-lg leading-relaxed font-medium">
                                             {q.text.split('\n').map((line, i) => (
@@ -468,6 +468,6 @@ export default function StudentExamPage({
                     </div>
                 </form>
             </main>
-        </div>
+        </div >
     );
 }

@@ -62,7 +62,8 @@ export default function MatchingQuestion({
         return { x, y };
     };
 
-    const handleMouseDownLeft = (index: number) => {
+    const handlePointerDownLeft = (e: React.PointerEvent, index: number) => {
+        // e.preventDefault(); // Prevent scroll trigger on some browsers if needed, but risky for access
         // 既に接続されている場合は解除
         if (connections[String(index)]) {
             setConnections((prev) => {
@@ -79,9 +80,11 @@ export default function MatchingQuestion({
             return;
         }
         setDrawingStart(String(index));
+        // Capture pointer to track movement outside element if needed, 
+        // but since we rely on container move, just setting state is enough.
     };
 
-    const handleMouseUpRight = (visualIndex: number) => {
+    const handlePointerUpRight = (visualIndex: number) => {
         // Visual Index を Original Index に変換
         const originalIndex = rightIndices[visualIndex];
 
@@ -116,14 +119,14 @@ export default function MatchingQuestion({
         }
     };
 
-    const handleMouseUpContainer = () => {
+    const handlePointerUpContainer = () => {
         if (drawingStart !== null) {
             setDrawingStart(null);
             setMousePos(null);
         }
     };
 
-    const handleMouseMove = (e: React.MouseEvent) => {
+    const handlePointerMove = (e: React.PointerEvent) => {
         if (drawingStart !== null && containerRef.current) {
             const rect = containerRef.current.getBoundingClientRect();
             setMousePos({
@@ -140,7 +143,7 @@ export default function MatchingQuestion({
             // eslint-disable-next-line @next/next/no-img-element
             return <img src={content} alt="content" className="h-16 w-auto object-contain border rounded" />;
         }
-        return <span className="p-2 border rounded bg-white shadow-sm inline-block min-w-[100px] text-center">{content}</span>;
+        return <span className="p-2 border rounded bg-white shadow-sm inline-block min-w-[100px] text-center whitespace-normal">{content}</span>;
     };
 
     // rightIndices がまだ準備できていない場合（SSR/初回）は空で表示しないか、ローディング
@@ -153,88 +156,96 @@ export default function MatchingQuestion({
     };
 
     return (
-        <div
-            className="relative bg-gray-50 p-6 rounded-lg select-none"
-            ref={containerRef}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUpContainer}
-            onMouseLeave={handleMouseUpContainer}
-        >
-            <p className="text-sm text-gray-500 mb-4 text-center">左の点から右の正しい項目へ線を引いてください。</p>
+        <div className="overflow-x-auto pb-4">
+            <div
+                className="relative bg-gray-50 p-6 rounded-lg select-none min-w-[600px] touch-none"
+                ref={containerRef}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUpContainer}
+                onPointerLeave={handlePointerUpContainer}
+                style={{ touchAction: 'none' }} // Prevent scrolling while interacting with the canvas
+            >
+                <p className="text-sm text-gray-500 mb-4 text-center">
+                    左の点から右の正しい項目へ線を引いてください（タップで選択可）。
+                </p>
 
-            <div className="flex justify-between items-center relative z-10">
-                {/* Left Column */}
-                <div className="flex flex-col space-y-8">
-                    {leftItems.map((item, idx) => (
-                        <div key={`left-${idx}`} className="flex items-center space-x-2">
-                            <div className="content">
-                                {renderContent(item)}
-                            </div>
-                            <div
-                                ref={(el) => { leftRefs.current[idx] = el; }}
-                                onMouseDown={() => handleMouseDownLeft(idx)}
-                                className={`w-6 h-6 rounded-full border-2 cursor-pointer transition-colors ${connections[String(idx)] ? "bg-indigo-600 border-indigo-600" : "bg-white border-gray-400 hover:border-indigo-500"
-                                    }`}
-                            ></div>
-                        </div>
-                    ))}
-                </div>
-
-                {/* Right Column (Shuffled) */}
-                <div className="flex flex-col space-y-8">
-                    {rightIndices.map((originalIndex, visualIndex) => {
-                        const item = pairs[originalIndex].right;
-                        return (
-                            <div key={`right-${visualIndex}`} className="flex items-center space-x-2">
-                                <div
-                                    ref={(el) => { rightRefs.current[visualIndex] = el; }}
-                                    onMouseUp={() => handleMouseUpRight(visualIndex)}
-                                    className={`w-6 h-6 rounded-full border-2 cursor-pointer transition-colors ${isConnectedRight(visualIndex) ? "bg-indigo-600 border-indigo-600" : "bg-white border-gray-400 hover:border-indigo-500"}`}
-                                ></div>
+                <div className="flex justify-between items-center relative z-10">
+                    {/* Left Column */}
+                    <div className="flex flex-col space-y-8">
+                        {leftItems.map((item, idx) => (
+                            <div key={`left-${idx}`} className="flex items-center space-x-2">
                                 <div className="content">
                                     {renderContent(item)}
                                 </div>
+                                <div
+                                    ref={(el) => { leftRefs.current[idx] = el; }}
+                                    onPointerDown={(e) => handlePointerDownLeft(e, idx)}
+                                    className={`w-8 h-8 rounded-full border-4 cursor-pointer transition-colors z-20 ${connections[String(idx)] ? "bg-indigo-600 border-indigo-200" : "bg-white border-gray-400 hover:border-indigo-500"
+                                        } ${drawingStart === String(idx) ? "ring-4 ring-indigo-300" : ""}`}
+                                ></div>
                             </div>
+                        ))}
+                    </div>
+
+                    {/* Right Column (Shuffled) */}
+                    <div className="flex flex-col space-y-8">
+                        {rightIndices.map((originalIndex, visualIndex) => {
+                            const item = pairs[originalIndex].right;
+                            return (
+                                <div key={`right-${visualIndex}`} className="flex items-center space-x-2">
+                                    <div
+                                        ref={(el) => { rightRefs.current[visualIndex] = el; }}
+                                        onPointerUp={() => handlePointerUpRight(visualIndex)}
+                                        className={`w-8 h-8 rounded-full border-4 cursor-pointer transition-colors z-20 ${isConnectedRight(visualIndex) ? "bg-indigo-600 border-indigo-200" : "bg-white border-gray-400 hover:border-indigo-500"}`}
+                                    ></div>
+                                    <div className="content">
+                                        {renderContent(item)}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Lines Layer */}
+                <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
+                    {/* 確定済みの線 */}
+                    {Object.entries(connections).map(([leftOriginalIdx, rightOriginalIdx]) => {
+                        const leftIdx = Number(leftOriginalIdx);
+                        // 右側は、Original Index から Visual Index を探す必要がある
+                        const rightVisualIdx = rightIndices.indexOf(Number(rightOriginalIdx));
+                        if (rightVisualIdx === -1) return null;
+
+                        const start = getCoords(leftRefs.current[leftIdx], "left");
+                        const end = getCoords(rightRefs.current[rightVisualIdx], "right");
+                        return (
+                            <line
+                                key={`${leftIdx}-${rightOriginalIdx}`}
+                                x1={start.x} y1={start.y}
+                                x2={end.x} y2={end.y}
+                                stroke="#4F46E5"
+                                strokeWidth="4"
+                            />
                         );
                     })}
-                </div>
-            </div>
 
-            {/* Lines Layer */}
-            <svg className="absolute top-0 left-0 w-full h-full pointer-events-none z-0">
-                {/* 確定済みの線 */}
-                {Object.entries(connections).map(([leftOriginalIdx, rightOriginalIdx]) => {
-                    const leftIdx = Number(leftOriginalIdx);
-                    // 右側は、Original Index から Visual Index を探す必要がある
-                    const rightVisualIdx = rightIndices.indexOf(Number(rightOriginalIdx));
-                    if (rightVisualIdx === -1) return null;
-
-                    const start = getCoords(leftRefs.current[leftIdx], "left");
-                    const end = getCoords(rightRefs.current[rightVisualIdx], "right");
-                    return (
+                    {/* ドラッグ中の線 */}
+                    {drawingStart !== null && mousePos && (
                         <line
-                            key={`${leftIdx}-${rightOriginalIdx}`}
-                            x1={start.x} y1={start.y}
-                            x2={end.x} y2={end.y}
-                            stroke="#4F46E5"
-                            strokeWidth="3"
+                            x1={getCoords(leftRefs.current[Number(drawingStart)], "left").x}
+                            y1={getCoords(leftRefs.current[Number(drawingStart)], "left").y}
+                            x2={mousePos.x}
+                            y2={mousePos.y}
+                            stroke="#818CF8"
+                            strokeWidth="4"
+                            strokeDasharray="5,5"
                         />
-                    );
-                })}
-
-                {/* ドラッグ中の線 */}
-                {drawingStart !== null && mousePos && (
-                    <line
-                        x1={getCoords(leftRefs.current[Number(drawingStart)], "left").x}
-                        y1={getCoords(leftRefs.current[Number(drawingStart)], "left").y}
-                        x2={mousePos.x}
-                        y2={mousePos.y}
-                        stroke="#818CF8"
-                        strokeWidth="3"
-                        strokeDasharray="5,5"
-                    />
-                )}
-            </svg>
+                    )}
+                </svg>
+            </div>
+            <div className="text-center text-xs text-gray-400 sm:hidden">
+                ※ 横にスクロールできます
+            </div>
         </div>
     );
 }
