@@ -181,8 +181,8 @@ export async function getStudentExam(id: string): Promise<any> {
     }
 }
 
-// 質問の更新 (一括保存用)
-export async function saveExamQuestions(examId: string, questions: Omit<Question, 'id' | 'examId'>[]) {
+// 質問の更新 (Upsert方式: 受験後も編集可能にするため)
+export async function saveExamQuestions(examId: string, questions: Partial<Question>[]) {
     try {
         const teacherId = await requireAuth();
 
@@ -193,24 +193,60 @@ export async function saveExamQuestions(examId: string, questions: Omit<Question
         }
 
         await prisma.$transaction(async (tx: any) => {
-            // 既存の質問を全て削除
-            await tx.question.deleteMany({
+            // 1. Get existing question IDs
+            const existingQuestions = await tx.question.findMany({
                 where: { examId },
+                select: { id: true }
             });
+            const existingIds = existingQuestions.map((q: any) => q.id);
 
-            // 新しい質問を作成
-            if (questions.length > 0) {
-                await tx.question.createMany({
-                    data: questions.map((q) => ({
-                        examId,
-                        text: q.text,
-                        type: q.type,
-                        options: q.options || [],
-                        correctAnswer: q.correctAnswer,
-                        imageUrl: q.imageUrl,
-                        score: q.score,
-                    })),
-                });
+            // 2. Identify questions to update, create, and delete
+            const incomingIds = questions.map(q => q.id).filter(id => id && !id.startsWith("new-") && !id.startsWith("import-")); // Filter temp IDs
+            const idsToDelete = existingIds.filter((id: string) => !incomingIds.includes(id));
+
+            // 3. Delete removed questions
+            // Note: This matches the previous behavior where missing questions are deleted.
+            // However, if the question is used in an ExamResult, this will throw an error.
+            if (idsToDelete.length > 0) {
+                try {
+                    await tx.question.deleteMany({
+                        where: {
+                            id: { in: idsToDelete },
+                            examId // Safety check
+                        }
+                    });
+                } catch (e) {
+                    console.error("Failed to delete questions (likely FK constraint):", e);
+                    throw new Error("一部の問題は既に使用されているため削除できません。");
+                }
+            }
+
+            // 4. Upsert (Update or Create) questions
+            for (const q of questions) {
+                const data = {
+                    text: q.text!,
+                    type: q.type!,
+                    options: q.options || [],
+                    correctAnswer: q.correctAnswer,
+                    imageUrl: q.imageUrl,
+                    score: q.score!,
+                };
+
+                if (q.id && !q.id.startsWith("new-") && !q.id.startsWith("import-")) {
+                    // Update existing
+                    await tx.question.update({
+                        where: { id: q.id },
+                        data
+                    });
+                } else {
+                    // Create new
+                    await tx.question.create({
+                        data: {
+                            examId,
+                            ...data
+                        }
+                    });
+                }
             }
 
             // Update updatedAt
@@ -224,7 +260,7 @@ export async function saveExamQuestions(examId: string, questions: Omit<Question
         return { success: true };
     } catch (error) {
         console.error('Failed to save questions:', error);
-        return { success: false, error: '問題の保存に失敗しました。' };
+        return { success: false, error: error instanceof Error ? error.message : '問題の保存に失敗しました。' };
     }
 }
 

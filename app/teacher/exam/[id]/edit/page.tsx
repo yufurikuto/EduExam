@@ -106,9 +106,9 @@ export default function ExamEditorPage({
 
     const handleSaveDatabase = async () => {
         setSaving(true);
-        // idはDBで再生成される可能性があるが、saveExamQuestionsはdelete-insert方式なので
-        // クライアント側のIDは無視して内容だけ送る
+        // クライアント側のIDは無視せず、サーバーで差分更新を行うために送信する
         const questionsToSave = questions.map(q => ({
+            id: q.id, // IDを含めて送信
             text: q.text,
             type: q.type,
             score: q.score,
