@@ -69,7 +69,7 @@ export default function QuestionForm({
     };
 
     return (
-        <form onSubmit={handleSubmit} className="bg-gray-50 p-4 rounded-lg border border-indigo-100">
+        <form onSubmit={handleSubmit} className="bg-white p-4 rounded-lg border-2 border-indigo-500 shadow-lg">
             <div className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700">問題文</label>

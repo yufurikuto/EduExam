@@ -7,46 +7,37 @@ interface SortableItemProps {
     children: React.ReactNode;
     onClick?: () => void;
     className?: string;
+    disabled?: boolean;
 }
 
-export function SortableItem({ id, children, onClick, className }: SortableItemProps) {
+export function SortableItem({ id, children, onClick, className, disabled }: SortableItemProps) {
     const {
         attributes,
         listeners,
         setNodeRef,
-        setActivatorNodeRef,
         transform,
         transition,
         isDragging,
-    } = useSortable({ id });
+    } = useSortable({ id, disabled });
 
-    const style = {
+    const style: React.CSSProperties = {
         transform: CSS.Transform.toString(transform),
         transition,
         zIndex: isDragging ? 10 : 1,
-        position: "relative" as const,
+        position: "relative",
+        opacity: isDragging ? 0.5 : 1,
     };
 
     return (
-        <div ref={setNodeRef} style={style} className={className}>
-            <div className="flex items-start gap-2">
-                <button
-                    type="button"
-                    ref={setActivatorNodeRef}
-                    {...attributes}
-                    {...listeners}
-                    className="mt-4 p-1 cursor-grab text-gray-400 hover:text-indigo-600 touch-none active:cursor-grabbing"
-                    title="ドラッグして移動"
-                >
-                    <GripVertical size={20} />
-                </button>
-                <div 
-                    onClick={onClick} 
-                    className="flex-1 cursor-pointer w-full"
-                >
-                    {children}
-                </div>
-            </div>
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`${className} ${disabled ? '' : 'cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow'}`}
+            {...attributes}
+            {...listeners}
+            onClick={onClick}
+        >
+            {children}
         </div>
     );
 }

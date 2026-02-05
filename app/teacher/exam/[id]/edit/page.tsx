@@ -267,6 +267,7 @@ export default function ExamEditorPage({
                                 key={q.id}
                                 id={q.id}
                                 className="mb-4"
+                                disabled={editingId === q.id}
                                 onClick={() => {
                                     if (editingId !== q.id) {
                                         setEditingId(q.id);
