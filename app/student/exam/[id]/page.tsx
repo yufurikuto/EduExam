@@ -173,6 +173,13 @@ export default function StudentExamPage({
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
                 <div className="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
                     <h1 className="text-2xl font-bold mb-6 text-center">{exam.title}</h1>
+
+                    {exam.description && (
+                        <div className="mb-6 bg-gray-50 p-4 rounded-md border border-gray-200 text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                            {exam.description}
+                        </div>
+                    )}
+
                     <p className="mb-6 text-gray-600 text-sm">
                         試験を開始する前に、出席番号と名前を入力してください。<br />
                         制限時間: {exam.timeLimit ? `${exam.timeLimit}分` : '無制限'}
